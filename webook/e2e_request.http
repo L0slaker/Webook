@@ -1,0 +1,38 @@
+### 信息展示
+
+GET http://localhost:8080/users/profile
+Content-Type: application/json
+#Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.0LTOJnn-LtXHJImS0Mji1_zDKnh5xITP2gZNqZ1bxJs
+Cookie: ssid=MTY5MTc2NDI0NHxEdi1CQkFFQ180SUFBUkFCRUFBQUhfLUNBQUVHYzNSeWFXNW5EQWdBQm5WelpYSkpaQVZwYm5RMk5BUUNBQVE9fBSJ76hM1ZDqFolm5MmWEGRdMfOxnj-c99bmC7zWg4qd
+
+### 信息修改
+POST http://localhost:8080/users/edit
+Content-Type: application/json
+Cookie: ssid=MTY5MTc2NDI0NHxEdi1CQkFFQ180SUFBUkFCRUFBQUhfLUNBQUVHYzNSeWFXNW5EQWdBQm5WelpYSkpaQVZwYm5RMk5BUUNBQVE9fBSJ76hM1ZDqFolm5MmWEGRdMfOxnj-c99bmC7zWg4qd
+#Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.0LTOJnn-LtXHJImS0Mji1_zDKnh5xITP2gZNqZ1bxJs
+
+{
+  "nickname": "Chinese",
+  "birthday":"2009-06-02"
+}
+
+
+### 登陆
+POST http://localhost:8080/users/login
+Content-Type: application/json
+
+{
+  "email": "mvpgopher@hotmail.com",
+  "password": "Abcd#1234",
+  "confirmPassword": "Abcd#1234"
+}
+
+### 注册
+POST http://localhost:8080/users/signup
+Content-Type: application/json
+
+{
+  "email": "mvpgopher@hotmail.com",
+  "password": "Abcd#1234",
+  "confirmPassword": "Abcd#1234"
+}

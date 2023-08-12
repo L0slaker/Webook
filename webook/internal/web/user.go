@@ -2,7 +2,6 @@ package web
 
 import (
 	"Prove/webook/internal/domain"
-	"Prove/webook/internal/repository/dao"
 	"Prove/webook/internal/service"
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
@@ -46,6 +45,7 @@ func (u *UserHandler) RegisterRoutes(e *gin.Engine) {
 	group.POST("/login", u.Login)
 	group.POST("/edit", u.Edit)
 	group.GET("/profile", u.Profile)
+	group.GET("/exit", u.Exit)
 }
 
 func (u *UserHandler) SignUp(ctx *gin.Context) {
@@ -86,7 +86,7 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 	}
 
 	//存储数据...
-	if err = u.svc.Signup(ctx.Request.Context(), domain.User{
+	if err = u.svc.Signup(ctx.Request.Context(), &domain.User{
 		Email:    info.Email,
 		Password: info.Password,
 	}); err != nil {
@@ -117,8 +117,8 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 	session := sessions.Default(ctx)
 	session.Set("userId", user.Id)
 	session.Options(sessions.Options{
-		//过期时间为60s
-		MaxAge: 60,
+		//过期时间为600s
+		MaxAge: 600,
 	})
 	if err = session.Save(); err != nil {
 		ctx.String(http.StatusInternalServerError, "服务器异常")
@@ -131,7 +131,7 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 
 }
 
-//Edit 实现编辑功能,允许用户补充基本个人信息，包括：
+// Edit 编辑功能,允许用户补充基本个人信息
 func (u *UserHandler) Edit(ctx *gin.Context) {
 	type MoreInfo struct {
 		Nickname string `json:"nickname"`
@@ -167,7 +167,7 @@ func (u *UserHandler) Edit(ctx *gin.Context) {
 	session := sessions.Default(ctx)
 	userId := session.Get("userId").(int64)
 
-	if _, err = u.svc.Edit(ctx, domain.User{
+	if err = u.svc.Edit(ctx.Request.Context(), &domain.User{
 		Id:       userId,
 		Birthday: info.Birthday,
 		Nickname: info.Nickname,
@@ -179,10 +179,12 @@ func (u *UserHandler) Edit(ctx *gin.Context) {
 	ctx.String(http.StatusOK, "更新个人信息成功")
 }
 
-//Profile 查看用户详情
+// Profile 查看用户详情
 func (u *UserHandler) Profile(ctx *gin.Context) {
 	type LoginEmail struct {
-		Email string
+		Email    string
+		Nickname string
+		Birthday string
 	}
 
 	var info LoginEmail
@@ -199,11 +201,26 @@ func (u *UserHandler) Profile(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, dao.User{
-		Id:       user.Id,
-		Email:    user.Email,
-		Password: user.Password,
-		Nickname: user.Nickname,
-		Birthday: user.Birthday,
+	ctx.JSON(http.StatusOK, gin.H{
+		"user info": LoginEmail{
+			Email:    user.Email,
+			Nickname: user.Nickname,
+			Birthday: user.Birthday,
+		},
+		"create_at": user.CreateTime,
+		"update_at": user.UpdateTime,
 	})
+}
+
+// Exit 退出功能
+func (u *UserHandler) Exit(ctx *gin.Context) {
+	sess := sessions.Default(ctx)
+	sess.Options(sessions.Options{
+		MaxAge: -1,
+	})
+	if err := sess.Save(); err != nil {
+		ctx.String(http.StatusInternalServerError, "系统故障")
+		return
+	}
+	ctx.String(http.StatusOK, "退出登陆成功！")
 }

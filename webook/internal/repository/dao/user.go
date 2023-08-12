@@ -38,7 +38,7 @@ func InitTables(db *gorm.DB) error {
 	return db.AutoMigrate(&User{})
 }
 
-func (dao *UserInfoDAO) Insert(ctx context.Context, u User) error {
+func (dao *UserInfoDAO) Insert(ctx context.Context, u *User) error {
 	now := time.Now().UnixMilli()
 	u.CreateTime = now
 	u.UpdateTime = now
@@ -66,19 +66,12 @@ func (dao *UserInfoDAO) FindById(ctx context.Context, id int64) (User, error) {
 	return u, err
 }
 
-func (dao *UserInfoDAO) CompleteInfo(ctx context.Context, u User) error {
-	//1.找到对应的user
-	user, err := dao.FindById(ctx, u.Id)
-	if err != nil {
-		return err
-	}
-	//2.更新user的nickname和birthday、updateTime字段
-	user.Nickname = u.Nickname
-	user.Birthday = u.Birthday
-	now := time.Now().UnixMilli()
-	user.UpdateTime = now
+func (dao *UserInfoDAO) CompleteInfo(ctx context.Context, u *User) error {
+	res := dao.db.WithContext(ctx).Model(&u).Updates(User{
+		Nickname:   u.Nickname,
+		Birthday:   u.Birthday,
+		UpdateTime: time.Now().UnixMilli(),
+	})
 
-	//3.保存修改
-	res := dao.db.Save(&user)
 	return res.Error
 }

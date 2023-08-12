@@ -23,7 +23,7 @@ func NewUserService(r *repository.UserInfoRepository) *UserService {
 	}
 }
 
-func (svc *UserService) Signup(ctx context.Context, u domain.User) error {
+func (svc *UserService) Signup(ctx context.Context, u *domain.User) error {
 	hashPwd, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -32,29 +32,22 @@ func (svc *UserService) Signup(ctx context.Context, u domain.User) error {
 	return svc.r.Create(ctx, u)
 }
 
-func (svc *UserService) Login(ctx context.Context, email, password string) (domain.User, error) {
+func (svc *UserService) Login(ctx context.Context, email, password string) (*domain.User, error) {
 	u, err := svc.r.FindByEmail(ctx, email)
 	if err == repository.ErrUserNotFound {
-		return domain.User{}, ErrUserDuplicateEmail
+		return &domain.User{}, ErrUserDuplicateEmail
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password))
 	if err != nil {
-		return domain.User{}, ErrInvalidUserOrPassword
+		return &domain.User{}, ErrInvalidUserOrPassword
 	}
 	return u, err
 }
 
-func (svc *UserService) Edit(ctx context.Context, u domain.User) (domain.User, error) {
-	user, err := svc.r.FindById(ctx, u.Id)
-	if err == repository.ErrUserNotFound {
-		return domain.User{}, err
-	}
-	if err = svc.r.CompleteInfo(ctx, user); err != nil {
-		return domain.User{}, err
-	}
-	return user, err
+func (svc *UserService) Edit(ctx context.Context, u *domain.User) error {
+	return svc.r.CompleteInfo(ctx, u)
 }
 
-func (svc *UserService) Profile(ctx context.Context, id int64) (domain.User, error) {
+func (svc *UserService) Profile(ctx context.Context, id int64) (*domain.User, error) {
 	return svc.r.FindById(ctx, id)
 }

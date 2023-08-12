@@ -9,7 +9,7 @@ import (
 	"Prove/webook/internal/web/middleware"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/memstore"
+	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -40,6 +40,7 @@ func initDB() *gorm.DB {
 	return db
 }
 
+// TypeError: Cannot read properties of undefined (reading 'status')
 func initWebServer() *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
@@ -63,7 +64,19 @@ func initWebServer() *gin.Engine {
 }
 
 func usingSession(r *gin.Engine) {
-	store := memstore.NewStore([]byte(""), []byte(""))
+	// 基于cookie
+	//store := cookie.NewStore([]byte("secret"))
+	// 基于内存，一般用于单实例部署
+	// 随机生成的32位密码，第一个参数是 authentication key(身份认证)，第二个参数是 encryption key(数据加密)
+	//store := memstore.NewStore([]byte("OAFXibGNCqeU49DiXzCADjs9up9d7bJz"), []byte("EdsbuUneoaqBDWlbLvqP1d1gsDX7GoKH"))
+	// 基于redis，可用于多实例部署
+	store, err := redis.NewStore(16, "tcp", "localhost:6379", "",
+		[]byte("OAFXibGNCqeU49DiXzCADjs9up9d7bJz"), []byte("EdsbuUneoaqBDWlbLvqP1d1gsDX7GoKH"))
+	if err != nil {
+		panic(err)
+	}
+
+	//myStore := &sqlx_store.Store{}
 
 	r.Use(sessions.Sessions("ssid", store))
 	// 校验
@@ -71,9 +84,9 @@ func usingSession(r *gin.Engine) {
 	r.Use(login.CheckLogin())
 }
 
-//func usingJWT(r *gin.Engine) {
-//
-//}
+func usingJWT(r *gin.Engine) {
+
+}
 
 func initUser(r *gin.Engine, db *gorm.DB) {
 	da := dao.NewUserInfoDAO(db)
