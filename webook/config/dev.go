@@ -1,3 +1,5 @@
+//go:build !k8s
+
 package config
 
 var Config = WebookConfig{
@@ -5,8 +7,6 @@ var Config = WebookConfig{
 		DSN: "root:root@tcp(localhost:13316)/webook",
 	},
 	Redis: RedisConfig{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       1,
+		Addr: "localhost:6379",
 	},
 }

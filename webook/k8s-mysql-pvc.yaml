@@ -1,0 +1,19 @@
+# pvc -> PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+# 这里指的是mysql需要使用的volume，但缺少了k8s需要使用的volume
+  name: webook-mysql-claim
+spec:
+  storageClassName: whatever
+  accessModes:
+#   一个POD读写
+    - ReadWriteOnce
+#   多个POD读，一个POD写
+#    - ReadOnlyMany
+#   多个POD读写
+#    - ReadWriteMany
+  resources:
+    requests:
+#     1GB
+      storage: 1Gi

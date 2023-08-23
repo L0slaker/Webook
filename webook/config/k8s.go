@@ -1,12 +1,14 @@
+//go:build k8s
+
 package config
 
-var KConfig = WebookConfig{
+var Config = WebookConfig{
 	DB: DBConfig{
+		//DSN: "root:root@tcp(webook-mysql:11309)/webook",
 		DSN: "root:root@tcp(webook-mysql:3308)/webook",
 	},
 	Redis: RedisConfig{
-		Addr:     "webook-redis:6379",
-		DB:       1,
-		Password: "",
+		//Addr: "webook-redis:11479",
+		Addr: "webook-redis:6380",
 	},
 }

@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webook
+#  specification
+spec:
+  #  副本数量
+  replicas: 2
+  selector:
+    matchLabels:
+      app: webook
+  #      template 描述的是你的 POD 是什么样的
+  template:
+    metadata:
+      labels:
+        app: webook
+    #    POD 的具体信息
+    spec:
+      containers:
+        - name: webook
+          image: l0slakers/webook:v0.0.1
+          ports:
+#           1-对标项目中 main 函数的启动端口
+            - containerPort: 8081

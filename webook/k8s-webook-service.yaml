@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: webook
+spec:
+  type: LoadBalancer
+# 这里 selector 筛选的是 Deployment 里的 template 内容
+  selector:
+    app: webook
+  ports:
+    - protocol: TCP
+      name: http
+#      2-外部访问端口
+      port: 81
+#      1-对标项目中 main 函数的启动端口
+      targetPort: 8081
+

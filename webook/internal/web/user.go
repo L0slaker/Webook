@@ -6,7 +6,9 @@ import (
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"net/http"
+	"time"
 )
 
 const (
@@ -37,15 +39,6 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 		nicknameRegex:        regexp.MustCompile(nicknameRegexPattern, regexp.None),
 		birthdayRegexPattern: regexp.MustCompile(birthdayRegexPattern, regexp.None),
 	}
-}
-
-func (u *UserHandler) RegisterRoutes(e *gin.Engine) {
-	group := e.Group("/users")
-	group.POST("/signup", u.SignUp)
-	group.POST("/login", u.Login)
-	group.POST("/edit", u.Edit)
-	group.GET("/profile", u.Profile)
-	group.GET("/exit", u.Exit)
 }
 
 func (u *UserHandler) SignUp(ctx *gin.Context) {
@@ -117,8 +110,8 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 	session := sessions.Default(ctx)
 	session.Set("userId", user.Id)
 	session.Options(sessions.Options{
-		//过期时间为600s
-		MaxAge: 600,
+		//过期时间为1分钟
+		MaxAge: 60,
 	})
 	if err = session.Save(); err != nil {
 		ctx.String(http.StatusInternalServerError, "服务器异常")
@@ -127,8 +120,41 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 	ctx.String(http.StatusOK, "登陆成功")
 }
 
+// LoginJWT 使用JWT校验
 func (u *UserHandler) LoginJWT(ctx *gin.Context) {
+	type LoginRequest struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
 
+	var info LoginRequest
+	if err := ctx.Bind(&info); err != nil {
+		return
+	}
+	user, err := u.svc.Login(ctx, info.Email, info.Password)
+
+	if err == service.ErrInvalidUserOrPassword {
+		ctx.String(http.StatusBadRequest, "邮箱或密码不正确，请重试")
+		return
+	}
+
+	claims := UserClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 30)),
+		},
+		UserId:    user.Id,
+		UserAgent: ctx.Request.UserAgent(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
+	tokenString, err := token.SignedString([]byte("OAFXibGNCqeU49DiXzCADjs9up9d7bJz"))
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, "系统错误")
+		return
+	}
+	ctx.Header("x-jwt-token", tokenString)
+
+	ctx.String(http.StatusOK, "登陆成功")
 }
 
 // Edit 编辑功能,允许用户补充基本个人信息
@@ -179,6 +205,59 @@ func (u *UserHandler) Edit(ctx *gin.Context) {
 	ctx.String(http.StatusOK, "更新个人信息成功")
 }
 
+// EditJWT 编辑功能,允许用户补充基本个人信息
+func (u *UserHandler) EditJWT(ctx *gin.Context) {
+	type MoreInfo struct {
+		Nickname string `json:"nickname"`
+		Birthday string `json:"birthday"`
+	}
+
+	var info MoreInfo
+	if err := ctx.Bind(&info); err != nil {
+		return
+	}
+
+	birthdayFlag, err := u.birthdayRegexPattern.MatchString(info.Birthday)
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, "系统错误")
+		return
+	}
+	if !birthdayFlag {
+		ctx.String(http.StatusBadRequest, "生日格式不正确，请以`1992-01-01`这种格式输入")
+		return
+	}
+
+	nicknameFlag, err := u.nicknameRegex.MatchString(info.Nickname)
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, "系统错误")
+		return
+	}
+	if !nicknameFlag {
+		ctx.String(http.StatusBadRequest, "昵称格式不正确，请输入2-20范围内的字符")
+		return
+	}
+
+	//接收login传下来的id
+	//接收login传下来的claims
+	c, _ := ctx.Get("claims")
+	claims, ok := c.(*UserClaims)
+	if !ok {
+		ctx.String(http.StatusUnauthorized, "系统错误")
+		return
+	}
+
+	if err = u.svc.Edit(ctx.Request.Context(), &domain.User{
+		Id:       claims.UserId,
+		Birthday: info.Birthday,
+		Nickname: info.Nickname,
+	}); err != nil {
+		ctx.String(http.StatusBadRequest, "更新信息失败，请检查格式")
+		return
+	}
+
+	ctx.String(http.StatusOK, "更新个人信息成功")
+}
+
 // Profile 查看用户详情
 func (u *UserHandler) Profile(ctx *gin.Context) {
 	type LoginEmail struct {
@@ -212,6 +291,43 @@ func (u *UserHandler) Profile(ctx *gin.Context) {
 	})
 }
 
+// ProfileJWT 查看用户详情
+func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
+	type LoginEmail struct {
+		Email    string
+		Nickname string
+		Birthday string
+	}
+
+	var info LoginEmail
+	if err := ctx.Bind(&info); err != nil {
+		return
+	}
+
+	c, _ := ctx.Get("claims")
+	claims, ok := c.(*UserClaims)
+	if !ok {
+		ctx.String(http.StatusInternalServerError, "系统错误")
+		return
+	}
+
+	user, err := u.svc.Profile(ctx, claims.UserId)
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, "系统错误")
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"user info": LoginEmail{
+			Email:    user.Email,
+			Nickname: user.Nickname,
+			Birthday: user.Birthday,
+		},
+		"create_at": user.CreateTime,
+		"update_at": user.UpdateTime,
+	})
+}
+
 // Exit 退出功能
 func (u *UserHandler) Exit(ctx *gin.Context) {
 	sess := sessions.Default(ctx)
@@ -223,4 +339,10 @@ func (u *UserHandler) Exit(ctx *gin.Context) {
 		return
 	}
 	ctx.String(http.StatusOK, "退出登陆成功！")
+}
+
+type UserClaims struct {
+	jwt.RegisteredClaims
+	UserId    int64
+	UserAgent string
 }

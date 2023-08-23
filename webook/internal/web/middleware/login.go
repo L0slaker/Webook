@@ -8,32 +8,42 @@ import (
 	"time"
 )
 
-type LoginMiddlewareBuilder struct{}
+type LoginMiddlewareBuilder struct {
+	paths []string
+}
 
-func (l *LoginMiddlewareBuilder) CheckLogin() gin.HandlerFunc {
-	gob.Register(time.Time{})
+func NewLoginMiddlewareBuilder() *LoginMiddlewareBuilder {
+	return &LoginMiddlewareBuilder{}
+}
+
+func (l *LoginMiddlewareBuilder) IgnorePaths(path string) *LoginMiddlewareBuilder {
+	l.paths = append(l.paths, path)
+	return l
+}
+
+func (l *LoginMiddlewareBuilder) Build() gin.HandlerFunc {
+	gob.Register(time.Now())
 	return func(ctx *gin.Context) {
-		if ctx.Request.URL.Path == "/users/signup" ||
-			ctx.Request.URL.Path == "/users/login" {
-			return
+		for _, path := range l.paths {
+			if ctx.Request.URL.Path == path {
+				return
+			}
 		}
+
 		sess := sessions.Default(ctx)
 		if sess.Get("userId") == nil {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
-		const timeKey = "update_time"
-		val := sess.Get(timeKey)
-		updateTime, ok := val.(time.Time)
-		// 处于演示效果，整个 session 的过期时间是 1 分钟，所以我这里十秒钟刷新一次。
-		// val == nil 是说明刚登录成功
-		// 我们不在登录里面初始化这个 update_time，是因为它属于"刷新"机制，而不属于登录机制
-		if val == nil || (ok && time.Now().Sub(updateTime) > time.Second*10) {
+		updateTime := sess.Get("update_time")
+		updateTimeVal, ok := updateTime.(time.Time)
+
+		if updateTime == nil || (ok && time.Now().Sub(updateTimeVal) > time.Second*10) {
 			sess.Options(sessions.Options{
 				MaxAge: 60,
 			})
-			sess.Set(timeKey, time.Now())
+			sess.Set("update_time", time.Now())
 			if err := sess.Save(); err != nil {
 				panic(err)
 			}

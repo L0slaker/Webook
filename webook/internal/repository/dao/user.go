@@ -62,7 +62,7 @@ func (dao *UserInfoDAO) FindByEmail(ctx context.Context, email string) (User, er
 
 func (dao *UserInfoDAO) FindById(ctx context.Context, id int64) (User, error) {
 	var u User
-	err := dao.db.WithContext(ctx).First(&u, "id = ?", id).Error
+	err := dao.db.WithContext(ctx).First(&u, "`id` = ?", id).Error
 	return u, err
 }
 
