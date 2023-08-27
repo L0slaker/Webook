@@ -7,10 +7,11 @@ func (u *UserHandler) RegisterRoutes(r *gin.Engine) {
 	group.POST("/signup", u.SignUp)
 	//group.POST("/login", u.Login)
 	group.POST("/login", u.LoginJWT)
+	group.POST("/login_sms/send/code", u.SendLoginSMSCode)
+	group.POST("/login_sms", u.LoginSMS)
 	//group.POST("/edit", u.Edit)
 	group.POST("/edit", u.EditJWT)
 	//group.GET("/profile", u.Profile)
 	group.GET("/profile", u.ProfileJWT)
 	group.GET("/exit", u.Exit)
 }
-

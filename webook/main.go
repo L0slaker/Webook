@@ -6,6 +6,7 @@ import (
 	"Prove/webook/internal/repository/cache"
 	"Prove/webook/internal/repository/dao"
 	"Prove/webook/internal/service"
+	"Prove/webook/internal/service/sms/memory"
 	"Prove/webook/internal/web"
 	"Prove/webook/internal/web/middleware"
 	"github.com/gin-contrib/cors"
@@ -106,7 +107,12 @@ func usingJWT(r *gin.Engine) {
 	//r.Use(sessions.Sessions("ssid", store))
 	// 校验
 	login := middleware.NewLoginJWTMiddlewareBuilder()
-	r.Use(login.IgnorePaths("/users/signup").IgnorePaths("/users/login").Build())
+	r.Use(login.
+		IgnorePaths("/users/signup").
+		IgnorePaths("/users/login").
+		IgnorePaths("/users/login_sms/send/code").
+		IgnorePaths("/users/login_sms").
+		Build())
 }
 
 func initUser(db *gorm.DB, rdb redis.Cmdable) *web.UserHandler {
@@ -114,7 +120,12 @@ func initUser(db *gorm.DB, rdb redis.Cmdable) *web.UserHandler {
 	uc := cache.NewUserCache(rdb)
 	repo := repository.NewUserInfoRepository(da, uc)
 	svc := service.NewUserService(repo)
-	u := web.NewUserHandler(svc)
-	//u.RegisterRoutes(r)
+
+	codeCache := cache.NewCodeCache(rdb)
+	codeRepo := repository.NewCodeRepository(codeCache)
+	smsSvc := memory.NewService()
+	codeSvc := service.NewCodeService(codeRepo, smsSvc)
+
+	u := web.NewUserHandler(svc, codeSvc)
 	return u
 }

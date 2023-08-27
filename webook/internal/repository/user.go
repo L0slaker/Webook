@@ -5,6 +5,7 @@ import (
 	"Prove/webook/internal/repository/cache"
 	"Prove/webook/internal/repository/dao"
 	"context"
+	"database/sql"
 )
 
 var (
@@ -25,26 +26,26 @@ func NewUserInfoRepository(dao *dao.UserInfoDAO, c *cache.UserCache) *UserInfoRe
 }
 
 func (ur *UserInfoRepository) Create(ctx context.Context, u *domain.User) error {
-	return ur.dao.Insert(ctx, &dao.User{
-		Email:    u.Email,
-		Password: u.Password,
-	})
+	ue := ur.domainToEntity(u)
+	return ur.dao.Insert(ctx, ue)
 }
 
 func (ur *UserInfoRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
-	u, err := ur.dao.FindByEmail(ctx, email)
+	ue, err := ur.dao.FindByEmail(ctx, email)
 	if err != nil {
 		return &domain.User{}, err
 	}
-	return &domain.User{
-		Id:         u.Id,
-		Email:      u.Email,
-		Password:   u.Password,
-		Nickname:   u.Nickname,
-		Birthday:   u.Birthday,
-		CreateTime: u.CreateTime,
-		UpdateTime: u.UpdateTime,
-	}, nil
+	u := ur.entityToDomain(ue)
+	return u, nil
+}
+
+func (ur *UserInfoRepository) FindByPhone(ctx context.Context, phone string) (*domain.User, error) {
+	ue, err := ur.dao.FindByPhone(ctx, phone)
+	if err != nil {
+		return &domain.User{}, err
+	}
+	u := ur.entityToDomain(ue)
+	return u, nil
 }
 
 func (ur *UserInfoRepository) FindById(ctx context.Context, id int64) (*domain.User, error) {
@@ -61,15 +62,7 @@ func (ur *UserInfoRepository) FindById(ctx context.Context, id int64) (*domain.U
 	if err != nil {
 		return &domain.User{}, err
 	}
-	u = &domain.User{
-		Id:         ue.Id,
-		Email:      ue.Email,
-		Password:   ue.Password,
-		Nickname:   ue.Nickname,
-		Birthday:   ue.Birthday,
-		CreateTime: ue.CreateTime,
-		UpdateTime: ue.UpdateTime,
-	}
+	u = ur.entityToDomain(ue)
 
 	go func() {
 		_ = ur.cache.Set(ctx, u)
@@ -90,4 +83,38 @@ func (ur *UserInfoRepository) CompleteInfo(ctx context.Context, u *domain.User) 
 		Birthday:   u.Birthday,
 		UpdateTime: u.UpdateTime,
 	})
+}
+
+func (ur *UserInfoRepository) entityToDomain(u dao.User) *domain.User {
+	return &domain.User{
+		Id:         u.Id,
+		Email:      u.Email.String,
+		Phone:      u.Phone.String,
+		Password:   u.Password,
+		Nickname:   u.Nickname,
+		Birthday:   u.Birthday,
+		CreateTime: u.CreateTime,
+		UpdateTime: u.UpdateTime,
+	}
+}
+
+func (ur *UserInfoRepository) domainToEntity(u *domain.User) dao.User {
+	return dao.User{
+		Id: u.Id,
+		Email: sql.NullString{
+			String: u.Email,
+			// 确实有手机号
+			Valid: u.Email != "",
+		},
+		Phone: sql.NullString{
+			String: u.Phone,
+			// 确实有邮箱
+			Valid: u.Phone != "",
+		},
+		Password:   u.Password,
+		Nickname:   u.Nickname,
+		Birthday:   u.Birthday,
+		CreateTime: u.CreateTime,
+		UpdateTime: u.UpdateTime,
+	}
 }
