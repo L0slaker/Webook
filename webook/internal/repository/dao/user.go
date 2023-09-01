@@ -10,9 +10,17 @@ import (
 )
 
 var (
-	ErrUserDuplicateEmail = errors.New("邮箱已被使用！")
-	ErrDataNotFound       = gorm.ErrRecordNotFound
+	ErrUserDuplicate = errors.New("邮箱或手机号已被使用！")
+	ErrDataNotFound  = gorm.ErrRecordNotFound
 )
+
+type UserDAO interface {
+	Insert(ctx context.Context, u User) error
+	FindById(ctx context.Context, id int64) (User, error)
+	FindByEmail(ctx context.Context, email string) (User, error)
+	FindByPhone(ctx context.Context, phone string) (User, error)
+	CompleteInfo(ctx context.Context, u *User) error
+}
 
 type User struct {
 	Id int64 `gorm:"primaryKey;autoIncrement"`
@@ -31,12 +39,12 @@ type User struct {
 	//DeleteTime int64
 }
 
-type UserInfoDAO struct {
+type GormUserDAO struct {
 	db *gorm.DB
 }
 
-func NewUserInfoDAO(db *gorm.DB) *UserInfoDAO {
-	return &UserInfoDAO{
+func NewUserInfoDAO(db *gorm.DB) UserDAO {
+	return &GormUserDAO{
 		db: db,
 	}
 }
@@ -45,7 +53,7 @@ func InitTables(db *gorm.DB) error {
 	return db.AutoMigrate(&User{})
 }
 
-func (dao *UserInfoDAO) Insert(ctx context.Context, u User) error {
+func (dao *GormUserDAO) Insert(ctx context.Context, u User) error {
 	now := time.Now().UnixMilli()
 	u.CreateTime = now
 	u.UpdateTime = now
@@ -55,31 +63,31 @@ func (dao *UserInfoDAO) Insert(ctx context.Context, u User) error {
 		const uniqueIndexErr uint16 = 1062
 		// 检查错误编号是否表示唯一索引冲突
 		if e.Number == uniqueIndexErr {
-			return ErrUserDuplicateEmail
+			return ErrUserDuplicate
 		}
 	}
 	return err
 }
 
-func (dao *UserInfoDAO) FindByEmail(ctx context.Context, email string) (User, error) {
+func (dao *GormUserDAO) FindByEmail(ctx context.Context, email string) (User, error) {
 	var u User
 	err := dao.db.WithContext(ctx).First(&u, "email = ?", email).Error
 	return u, err
 }
 
-func (dao *UserInfoDAO) FindByPhone(ctx context.Context, phone string) (User, error) {
+func (dao *GormUserDAO) FindByPhone(ctx context.Context, phone string) (User, error) {
 	var u User
 	err := dao.db.WithContext(ctx).First(&u, "phone = ?", phone).Error
 	return u, err
 }
 
-func (dao *UserInfoDAO) FindById(ctx context.Context, id int64) (User, error) {
+func (dao *GormUserDAO) FindById(ctx context.Context, id int64) (User, error) {
 	var u User
 	err := dao.db.WithContext(ctx).First(&u, "`id` = ?", id).Error
 	return u, err
 }
 
-func (dao *UserInfoDAO) CompleteInfo(ctx context.Context, u *User) error {
+func (dao *GormUserDAO) CompleteInfo(ctx context.Context, u *User) error {
 	res := dao.db.WithContext(ctx).Model(&u).Updates(User{
 		Nickname:   u.Nickname,
 		Birthday:   u.Birthday,

@@ -27,8 +27,8 @@ const (
 )
 
 type UserHandler struct {
-	svc                   *service.UserService
-	codeSvc               *service.CodeService
+	svc                   service.UserAndService
+	codeSvc               service.CodeAndService
 	emailRegexExp         *regexp.Regexp
 	passwordRegexExp      *regexp.Regexp
 	nicknameRegex         *regexp.Regexp
@@ -37,7 +37,7 @@ type UserHandler struct {
 	jwtKey                string
 }
 
-func NewUserHandler(svc *service.UserService, codeSvc *service.CodeService) *UserHandler {
+func NewUserHandler(svc service.UserAndService, codeSvc service.CodeAndService) *UserHandler {
 	return &UserHandler{
 		svc:                   svc,
 		codeSvc:               codeSvc,
@@ -66,14 +66,14 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
 			Code: 5,
-			Msg:  "系统错误",
+			Msg:  "系统错误！",
 		})
 		return
 	}
 	if !emailFlag {
 		ctx.JSON(http.StatusBadRequest, Result{
 			Code: 4,
-			Msg:  "邮箱不正确",
+			Msg:  "邮箱不正确！",
 		})
 		return
 	}
@@ -82,7 +82,7 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 	if info.Password != info.ConfirmPassword {
 		ctx.JSON(http.StatusBadRequest, Result{
 			Code: 4,
-			Msg:  "两次密码不相同",
+			Msg:  "两次密码不相同！",
 		})
 		return
 	}
@@ -91,26 +91,34 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
 			Code: 5,
-			Msg:  "系统错误",
+			Msg:  "系统错误！",
 		})
 		return
 	}
 	if !pwdFlag {
 		ctx.JSON(http.StatusBadRequest, Result{
 			Code: 4,
-			Msg:  "密码格式不正确，必须包含字母、数字、特殊字符。且长度不能小于 8 位",
+			Msg:  "密码格式不正确，必须包含字母、数字、特殊字符。且长度不能小于 8 位！",
 		})
 		return
 	}
 
 	//存储数据...
-	if err = u.svc.Signup(ctx.Request.Context(), &domain.User{
+	err = u.svc.Signup(ctx.Request.Context(), &domain.User{
 		Email:    info.Email,
 		Password: info.Password,
-	}); err != nil {
+	})
+	if err == service.ErrUserDuplicate {
 		ctx.JSON(http.StatusBadRequest, Result{
 			Code: 4,
 			Msg:  "重复邮箱，请更换邮箱！",
+		})
+		return
+	}
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, Result{
+			Code: 5,
+			Msg:  "系统错误！",
 		})
 		return
 	}
@@ -136,7 +144,14 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 	if err == service.ErrInvalidUserOrPassword {
 		ctx.JSON(http.StatusBadRequest, Result{
 			Code: 4,
-			Msg:  "邮箱或密码不正确，请重试",
+			Msg:  "邮箱或密码不正确，请重试！",
+		})
+		return
+	}
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, Result{
+			Code: 5,
+			Msg:  "系统错误！",
 		})
 		return
 	}
@@ -149,8 +164,8 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 	})
 	if err = session.Save(); err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 4,
-			Msg:  "服务器异常",
+			Code: 5,
+			Msg:  "系统错误！",
 		})
 		return
 	}
@@ -189,7 +204,8 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, Result{
-		Msg: "登陆成功",
+		Code: 4,
+		Msg:  "登陆成功！",
 	})
 }
 
@@ -430,17 +446,6 @@ func (u *UserHandler) EditJWT(ctx *gin.Context) {
 
 // Profile 查看用户详情
 func (u *UserHandler) Profile(ctx *gin.Context) {
-	type LoginEmail struct {
-		Email    string
-		Nickname string
-		Birthday string
-	}
-
-	var info LoginEmail
-	if err := ctx.Bind(&info); err != nil {
-		return
-	}
-
 	session := sessions.Default(ctx)
 	userId := session.Get("userId").(int64)
 
@@ -454,28 +459,17 @@ func (u *UserHandler) Profile(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"user info": LoginEmail{
-			Email:    user.Email,
-			Nickname: user.Nickname,
-			Birthday: user.Birthday,
-		},
-		"create_at": user.CreateTime,
-		"update_at": user.UpdateTime,
+		"nickname":     user.Nickname,
+		"email":        user.Email,
+		"phone number": user.Phone,
+		"birthday":     user.Birthday,
+		"create_at":    user.CreateTime,
+		"update_at":    user.UpdateTime,
 	})
 }
 
 // ProfileJWT 查看用户详情
 func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
-	type LoginEmail struct {
-		Nickname string
-		Birthday string
-	}
-
-	var info LoginEmail
-	if err := ctx.Bind(&info); err != nil {
-		return
-	}
-
 	c, _ := ctx.Get("claims")
 	claims, ok := c.(*UserClaims)
 	if !ok {

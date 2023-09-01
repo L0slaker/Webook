@@ -22,6 +22,7 @@ func (l *LoginMiddlewareBuilder) IgnorePaths(path string) *LoginMiddlewareBuilde
 }
 
 func (l *LoginMiddlewareBuilder) Build() gin.HandlerFunc {
+	// 为了在使用 sessions 包进行会话管理时，能够正确地对 time.Now() 进行序列化和反序列化操作
 	gob.Register(time.Now())
 	return func(ctx *gin.Context) {
 		for _, path := range l.paths {

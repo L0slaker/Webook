@@ -9,16 +9,24 @@ import (
 )
 
 var (
-	ErrUserDuplicateEmail = dao.ErrUserDuplicateEmail
-	ErrUserNotFound       = dao.ErrDataNotFound
+	ErrUserDuplicate = dao.ErrUserDuplicate
+	ErrUserNotFound  = dao.ErrDataNotFound
 )
 
-type UserInfoRepository struct {
-	dao   *dao.UserInfoDAO
-	cache *cache.UserCache
+type UserRepository interface {
+	Create(ctx context.Context, u *domain.User) error
+	FindById(ctx context.Context, id int64) (*domain.User, error)
+	FindByEmail(ctx context.Context, email string) (*domain.User, error)
+	FindByPhone(ctx context.Context, phone string) (*domain.User, error)
+	CompleteInfo(ctx context.Context, u *domain.User) error
 }
 
-func NewUserInfoRepository(dao *dao.UserInfoDAO, c *cache.UserCache) *UserInfoRepository {
+type UserInfoRepository struct {
+	dao   dao.UserDAO
+	cache cache.UserCache
+}
+
+func NewUserInfoRepository(dao dao.UserDAO, c cache.UserCache) UserRepository {
 	return &UserInfoRepository{
 		dao:   dao,
 		cache: c,

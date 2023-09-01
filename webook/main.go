@@ -1,84 +1,72 @@
 package main
 
 import (
-	"Prove/webook/config"
-	"Prove/webook/internal/repository"
-	"Prove/webook/internal/repository/cache"
-	"Prove/webook/internal/repository/dao"
-	"Prove/webook/internal/service"
-	"Prove/webook/internal/service/sms/memory"
-	"Prove/webook/internal/web"
-	"Prove/webook/internal/web/middleware"
-	"github.com/gin-contrib/cors"
 	_ "github.com/gin-contrib/sessions/redis"
-	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-	"strings"
-	"time"
 )
 
 func main() {
-	db := initDB()
-	r := initWebServer()
-	rdb := initRedis()
-	u := initUser(db, rdb)
-	u.RegisterRoutes(r)
-
+	//db := initDB()
+	//r := initWebServer()
+	//rdb := initRedis()
+	//u := initUser(db, rdb)
+	//u.RegisterRoutes(r)
+	r := InitWebServer()
 	err := r.Run(":8081")
 	if err != nil {
 		panic("端口启动失败")
 	}
 }
 
-func initRedis() redis.Cmdable {
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: config.Config.Redis.Addr,
-	})
-	return redisClient
-}
+// 依赖注入，迁移
+//func initRedis() redis.Cmdable {
+//	redisClient := redis.NewClient(&redis.Options{
+//		Addr: config.Config.Redis.Addr,
+//	})
+//	return redisClient
+//}
 
-func initDB() *gorm.DB {
-	db, err := gorm.Open(mysql.Open(config.Config.DB.DSN))
-	if err != nil {
-		panic(err)
-	}
-	err = dao.InitTables(db)
-	if err != nil {
-		panic(err)
-	}
-	return db
-}
+// 依赖注入，迁移
+//func initDB() *gorm.DB {
+//	db, err := gorm.Open(mysql.Open(config.Config.DB.DSN))
+//	if err != nil {
+//		panic(err)
+//	}
+//	err = dao.InitTables(db)
+//	if err != nil {
+//		panic(err)
+//	}
+//	return db
+//}
 
+// 依赖注入，迁移
 // TypeError: Cannot read properties of undefined (reading 'status')
-func initWebServer() *gin.Engine {
-	r := gin.Default()
-	// 跨域机制
-	r.Use(cors.New(cors.Config{
-		AllowCredentials: true,
-		AllowHeaders:     []string{"Content-Type", "Authorization"},
-		// 加上 ExposeHeaders，前端才能拿到
-		ExposeHeaders: []string{"x-jwt-token"},
-		AllowOriginFunc: func(origin string) bool {
-			if strings.HasPrefix(origin, "http://localhost") {
-				return true
-			}
-			return strings.Contains(origin, "your_company.com")
-		},
-		MaxAge: 12 * time.Hour,
-	}))
-
-	// 限流机制
-	//redisClient := redis.NewClient(&redis.Options{
-	//	Addr: config.Config.Redis.Addr,
-	//})
-	//r.Use(ratelimit.NewBuilder(redisClient, time.Second, 100).Build())
-
-	//usingSession(r)
-	usingJWT(r)
-	return r
-}
+//func initWebServer() *gin.Engine {
+//	r := gin.Default()
+//	// 跨域机制
+//	r.Use(cors.New(cors.Config{
+//		AllowCredentials: true,
+//		AllowHeaders:     []string{"Content-Type", "Authorization"},
+//		// 加上 ExposeHeaders，前端才能拿到
+//		ExposeHeaders: []string{"x-jwt-token"},
+//		AllowOriginFunc: func(origin string) bool {
+//			if strings.HasPrefix(origin, "http://localhost") {
+//				return true
+//			}
+//			return strings.Contains(origin, "your_company.com")
+//		},
+//		MaxAge: 12 * time.Hour,
+//	}))
+//
+//	// 限流机制
+//	//redisClient := redis.NewClient(&redis.Options{
+//	//	Addr: config.Config.Redis.Addr,
+//	//})
+//	//r.Use(ratelimit.NewBuilder(redisClient, time.Second, 100).Build())
+//
+//	//usingSession(r)
+//	usingJWT(r)
+//	return r
+//}
 
 //func usingSession(r *gin.Engine) {
 //	// 基于cookie
@@ -101,31 +89,52 @@ func initWebServer() *gin.Engine {
 //	r.Use(login.IgnorePaths("/users/signup").IgnorePaths("/users/login").Build())
 //}
 
-func usingJWT(r *gin.Engine) {
-	//store := memstore.NewStore([]byte("OAFXibGNCqeU49DiXzCADjs9up9d7bJz"), []byte("EdsbuUneoaqBDWlbLvqP1d1gsDX7GoKH"))
-	//
-	//r.Use(sessions.Sessions("ssid", store))
-	// 校验
-	login := middleware.NewLoginJWTMiddlewareBuilder()
-	r.Use(login.
-		IgnorePaths("/users/signup").
-		IgnorePaths("/users/login").
-		IgnorePaths("/users/login_sms/send/code").
-		IgnorePaths("/users/login_sms").
-		Build())
-}
+// 依赖注入，迁移
+//func usingJWT(r *gin.Engine) {
+//	//store := memstore.NewStore([]byte("OAFXibGNCqeU49DiXzCADjs9up9d7bJz"), []byte("EdsbuUneoaqBDWlbLvqP1d1gsDX7GoKH"))
+//	//
+//	//r.Use(sessions.Sessions("ssid", store))
+//	// 校验
+//	login := middleware.NewLoginJWTMiddlewareBuilder()
+//	r.Use(login.
+//		IgnorePaths("/users/signup").
+//		IgnorePaths("/users/login").
+//		IgnorePaths("/users/login_sms/send/code").
+//		IgnorePaths("/users/login_sms").
+//		Build())
+//}
 
-func initUser(db *gorm.DB, rdb redis.Cmdable) *web.UserHandler {
-	da := dao.NewUserInfoDAO(db)
-	uc := cache.NewUserCache(rdb)
-	repo := repository.NewUserInfoRepository(da, uc)
-	svc := service.NewUserService(repo)
+// 依赖注入，迁移
+//func initUser(db *gorm.DB, rdb redis.Cmdable) *web.UserHandler {
+//	da := dao.NewUserInfoDAO(db)
+//	uc := cache.NewUserCache(rdb)
+//	repo := repository.NewUserInfoRepository(da, uc)
+//	svc := service.NewUserService(repo)
+//
+//	//var codeCache *cache.CodeCache
+//	//store := &sync.Map{}
+//	//localCodeCache := cache.NewLocalCodeCache(store)
+//	redisCodeCache := cache.NewRedisCodeCache(rdb)
+//	codeRepo := repository.NewCodeRepository(redisCodeCache)
+//	smsSvc := memory.NewService()
+//	//smsSvc := aliyun_v1.NewService(initClient(), signName)
+//	codeSvc := service.NewCodeService(codeRepo, smsSvc)
+//
+//	u := web.NewUserHandler(svc, codeSvc)
+//	return u
+//}
 
-	codeCache := cache.NewCodeCache(rdb)
-	codeRepo := repository.NewCodeRepository(codeCache)
-	smsSvc := memory.NewService()
-	codeSvc := service.NewCodeService(codeRepo, smsSvc)
-
-	u := web.NewUserHandler(svc, codeSvc)
-	return u
-}
+//const (
+//	accessKeyId  = "LTAI5tPd2puB2DMpFKyNupGP"
+//	accessSecret = "HHCb1QjkxWjJ2bIeL5tqwsJKMIOxHr"
+//	signName     = "阿里云短信测试"
+//)
+//
+//func initClient() *dysmsapi.Client {
+//	client, err := dysmsapi.NewClientWithAccessKey("cn-hangzhou", accessKeyId, accessSecret)
+//
+//	if err != nil {
+//		panic(err)
+//	}
+//	return client
+//}
