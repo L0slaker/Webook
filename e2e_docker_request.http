@@ -1,0 +1,53 @@
+### 校验手机验证码
+POST http://localhost:8081/users/login_sms
+Content-Type: application/json
+
+{
+  "Phone": "13509516520",
+  "Code": "498081"
+}
+
+### 获取手机验证码
+POST http://localhost:8081/users/login_sms/send/code
+Content-Type: application/json
+
+{
+  "Phone": "13509516520"
+}
+
+### 信息展示
+GET http://localhost:8081/users/profile
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTMxNDQ1MTcsIlVzZXJJZCI6MSwiVXNlckFnZW50IjoiQXBhY2hlLUh0dHBDbGllbnQvNC41LjEzIChKYXZhLzE3LjAuMykifQ.3dy013-PTAiKO-4AKP65BwLCoTKeefTbPSNvK5IAbVo9WowTSlyxVM3PFF8efaYCj5g7HScY9oEkA9JB3IREqA
+//Cookie: ssid=MTY5MTc2NDI0NHxEdi1CQkFFQ180SUFBUkFCRUFBQUhfLUNBQUVHYzNSeWFXNW5EQWdBQm5WelpYSkpaQVZwYm5RMk5BUUNBQVE9fBSJ76hM1ZDqFolm5MmWEGRdMfOxnj-c99bmC7zWg4qd
+
+### 信息修改
+POST http://localhost:8081/users/edit
+Content-Type: application/json
+#Cookie: ssid=MTY5MTc2NDI0NHxEdi1CQkFFQ180SUFBUkFCRUFBQUhfLUNBQUVHYzNSeWFXNW5EQWdBQm5WelpYSkpaQVZwYm5RMk5BUUNBQVE9fBSJ76hM1ZDqFolm5MmWEGRdMfOxnj-c99bmC7zWg4qd
+Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTMxNDQ1MTcsIlVzZXJJZCI6MSwiVXNlckFnZW50IjoiQXBhY2hlLUh0dHBDbGllbnQvNC41LjEzIChKYXZhLzE3LjAuMykifQ.3dy013-PTAiKO-4AKP65BwLCoTKeefTbPSNvK5IAbVo9WowTSlyxVM3PFF8efaYCj5g7HScY9oEkA9JB3IREqA
+
+{
+  "nickname": "Kobe",
+  "birthday":"2000-12-22"
+}
+
+### 登陆
+POST http://localhost:8081/users/login
+Content-Type: application/json
+
+{
+  "email": "l0slakers@gmail.com",
+  "password": "Abcd#1234",
+  "confirmPassword": "Abcd#1234"
+}
+
+### 注册
+POST http://localhost:8081/users/signup
+Content-Type: application/json
+
+{
+  "email": "l0slakers@gmail.com",
+  "password": "Abcd#1234",
+  "confirmPassword": "Abcd#1234"
+}

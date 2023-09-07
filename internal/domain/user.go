@@ -1,0 +1,12 @@
+package domain
+
+type User struct {
+	Id         int64
+	Email      string
+	Phone      string
+	Password   string
+	Nickname   string
+	Birthday   string
+	CreateTime int64
+	UpdateTime int64
+}
