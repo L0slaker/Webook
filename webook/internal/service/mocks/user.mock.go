@@ -9,7 +9,6 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gin "github.com/gin-gonic/gin"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -51,7 +50,7 @@ func (mr *MockUserAndServiceMockRecorder) Edit(ctx, u interface{}) *gomock.Call 
 }
 
 // FindOrCreate mocks base method.
-func (m *MockUserAndService) FindOrCreate(ctx *gin.Context, phone string) (*domain.User, error) {
+func (m *MockUserAndService) FindOrCreate(ctx context.Context, phone string) (*domain.User, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FindOrCreate", ctx, phone)
 	ret0, _ := ret[0].(*domain.User)

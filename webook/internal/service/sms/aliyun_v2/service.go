@@ -6,8 +6,7 @@ import (
 	"fmt"
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	dysms "github.com/alibabacloud-go/dysmsapi-20170525/v3/client"
-	"github.com/alibabacloud-go/tea/tea"
-	"os"
+	"github.com/ecodeclub/ekit"
 	"strconv"
 	"strings"
 )
@@ -17,23 +16,23 @@ type Service struct {
 	signName string
 }
 
-func NewService(signName string) *Service {
-	client := CreateClient()
+func NewService(accessKeyId, accessKeySecret *string, signName string) *Service {
+	client := CreateClient(accessKeyId, accessKeySecret)
 	return &Service{
 		client:   client,
 		signName: signName,
 	}
 }
 
-func CreateClient() *dysms.Client {
+func CreateClient(accessKeyId *string, accessKeySecret *string) *dysms.Client {
 	config := &openapi.Config{
 		// 必填，您的 AccessKey ID
-		AccessKeyId: tea.String(os.Getenv("ALIBABA_CLOUD_ACCESS_KEY_ID")),
+		AccessKeyId: accessKeyId,
 		// 必填，您的 AccessKey Secret
-		AccessKeySecret: tea.String(os.Getenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET")),
+		AccessKeySecret: accessKeySecret,
 	}
 	// Endpoint 请参考 https://api.aliyun.com/product/Dysmsapi
-	config.Endpoint = tea.String("dysmsapi.aliyuncs.com")
+	config.Endpoint = ekit.ToPtr[string]("dysmsapi.aliyuncs.com")
 	res := &dysms.Client{}
 	res, err := dysms.NewClient(config)
 	if err != nil {
@@ -42,7 +41,7 @@ func CreateClient() *dysms.Client {
 	return res
 }
 
-func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers ...string) error {
+func (s *Service) Send(ctx context.Context, biz string, args []string, numbers ...string) error {
 	argsMap := make(map[string]string, len(args))
 	for k, arg := range args {
 		argsMap[strconv.Itoa(k)] = arg
@@ -56,10 +55,10 @@ func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers
 		//TemplateCode:  tea.String("SMS_154950909"),
 		//PhoneNumbers:  tea.String("13509516520"),
 		//TemplateParam: tea.String("{\"code\":\"123456\"}"),
-		SignName:      tea.String(s.signName),
-		TemplateCode:  tea.String(tplId),
-		PhoneNumbers:  tea.String(strings.Join(numbers, ",")),
-		TemplateParam: tea.String(string(bCode)),
+		SignName:      ekit.ToPtr[string](s.signName),
+		TemplateCode:  ekit.ToPtr[string](biz),
+		PhoneNumbers:  ekit.ToPtr[string](strings.Join(numbers, ",")),
+		TemplateParam: ekit.ToPtr[string](string(bCode)),
 	}
 	var resp *dysms.SendSmsResponse
 	resp, err = s.client.SendSms(sendSmsRequest)

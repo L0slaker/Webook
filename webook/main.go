@@ -1,7 +1,15 @@
 package main
 
 import (
+	"Prove/webook/internal/repository"
+	"Prove/webook/internal/repository/cache"
+	"Prove/webook/internal/repository/dao"
+	"Prove/webook/internal/service"
+	"Prove/webook/internal/service/sms/memory"
+	"Prove/webook/internal/web"
 	_ "github.com/gin-contrib/sessions/redis"
+	"github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -11,7 +19,7 @@ func main() {
 	//u := initUser(db, rdb)
 	//u.RegisterRoutes(r)
 	r := InitWebServer()
-	err := r.Run(":8081")
+	err := r.Run(":8080")
 	if err != nil {
 		panic("端口启动失败")
 	}
@@ -105,24 +113,24 @@ func main() {
 //}
 
 // 依赖注入，迁移
-//func initUser(db *gorm.DB, rdb redis.Cmdable) *web.UserHandler {
-//	da := dao.NewUserInfoDAO(db)
-//	uc := cache.NewUserCache(rdb)
-//	repo := repository.NewUserInfoRepository(da, uc)
-//	svc := service.NewUserService(repo)
-//
-//	//var codeCache *cache.CodeCache
-//	//store := &sync.Map{}
-//	//localCodeCache := cache.NewLocalCodeCache(store)
-//	redisCodeCache := cache.NewRedisCodeCache(rdb)
-//	codeRepo := repository.NewCodeRepository(redisCodeCache)
-//	smsSvc := memory.NewService()
-//	//smsSvc := aliyun_v1.NewService(initClient(), signName)
-//	codeSvc := service.NewCodeService(codeRepo, smsSvc)
-//
-//	u := web.NewUserHandler(svc, codeSvc)
-//	return u
-//}
+func initUser(db *gorm.DB, rdb redis.Cmdable) *web.UserHandler {
+	da := dao.NewUserInfoDAO(db)
+	uc := cache.NewUserCache(rdb)
+	repo := repository.NewUserInfoRepository(da, uc)
+	svc := service.NewUserService(repo)
+
+	//var codeCache *cache.CodeCache
+	//store := &sync.Map{}
+	//localCodeCache := cache.NewLocalCodeCache(store)
+	redisCodeCache := cache.NewRedisCodeCache(rdb)
+	codeRepo := repository.NewCodeRepository(redisCodeCache)
+	smsSvc := memory.NewService()
+	//smsSvc := aliyun_v1.NewService(initClient(), signName)
+	codeSvc := service.NewCodeService(codeRepo, smsSvc)
+
+	u := web.NewUserHandler(svc, codeSvc)
+	return u
+}
 
 //const (
 //	accessKeyId  = "LTAI5tPd2puB2DMpFKyNupGP"

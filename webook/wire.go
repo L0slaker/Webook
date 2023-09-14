@@ -22,9 +22,9 @@ func InitWebServer() *gin.Engine {
 		// 初始化 UserInfoRepository,CachedCodeRepository
 		repository.NewUserInfoRepository, repository.NewCodeRepository,
 		// 初始化 UserService,CodeService,SmsService
-		service.NewUserService, service.NewCodeService, ioc.InitSMSService,
+		service.NewUserService, service.NewCodeService, ioc.InitSMSService, ioc.InitWechatService,
 		// 初始化 UserHandler
-		web.NewUserHandler,
+		web.NewUserHandler, web.NewOAuth2WechatHandler,
 		// 初始化 Middleware
 		ioc.InitMiddlewares,
 		// 初始化 Engine

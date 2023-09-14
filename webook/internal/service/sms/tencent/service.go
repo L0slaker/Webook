@@ -10,10 +10,11 @@ import (
 )
 
 type Service struct {
-	client *sms.Client
-
+	client   *sms.Client
 	appId    *string
 	signName *string
+	//// 侵入式的设计
+	//limit    ratelimit.Limiter
 }
 
 func NewService(client *sms.Client, appId string, signName string) *Service {
@@ -21,14 +22,27 @@ func NewService(client *sms.Client, appId string, signName string) *Service {
 		client:   client,
 		appId:    ekit.ToPtr[string](appId),
 		signName: ekit.ToPtr[string](signName),
+		//limit:    limit,
 	}
 }
 
-func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers ...string) error {
+func (s *Service) Send(ctx context.Context, biz string, args []string, numbers ...string) error {
+	//// 侵入式的设计
+	//limited, err := s.limit.Limit(ctx, key)
+	//if err != nil {
+	//	// 系统错误
+	//	// 可以限流：下游不可靠
+	//	// 可以不限流：下游可靠，业务可用性高，尽量容错策略
+	//	return fmt.Errorf("短信服务判断是否限流出现问题：%w", err)
+	//}
+	//if limited {
+	//	return fmt.Errorf("触发了限流")
+	//}
+
 	req := sms.NewSendSmsRequest()
 	req.SmsSdkAppId = s.appId
 	req.SignName = s.signName
-	req.TemplateId = ekit.ToPtr[string](tplId)
+	req.TemplateId = ekit.ToPtr[string](biz)
 	req.PhoneNumberSet = s.toStringPtr(numbers)
 	req.TemplateParamSet = s.toStringPtr(args)
 	resp, err := s.client.SendSms(req)
@@ -44,11 +58,11 @@ func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers
 	return nil
 }
 
-func (s *Service) SendV1(ctx context.Context, tplId string, args []mysms.NameArg, numbers ...string) error {
+func (s *Service) SendV1(ctx context.Context, biz string, args []mysms.NameArg, numbers ...string) error {
 	req := sms.NewSendSmsRequest()
 	req.SmsSdkAppId = s.appId
 	req.SignName = s.signName
-	req.TemplateId = ekit.ToPtr[string](tplId)
+	req.TemplateId = ekit.ToPtr[string](biz)
 	req.PhoneNumberSet = s.toStringPtr(numbers)
 	req.TemplateParamSet = slice.Map[mysms.NameArg, *string](args, func(idx int, src mysms.NameArg) *string {
 		return &src.Val

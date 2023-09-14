@@ -19,7 +19,8 @@ type UserDAO interface {
 	FindById(ctx context.Context, id int64) (User, error)
 	FindByEmail(ctx context.Context, email string) (User, error)
 	FindByPhone(ctx context.Context, phone string) (User, error)
-	CompleteInfo(ctx context.Context, u *User) error
+	CompleteInfo(ctx context.Context, u User) error
+	FindByWechat(ctx context.Context, openId string) (User, error)
 }
 
 type User struct {
@@ -29,14 +30,16 @@ type User struct {
 	//Email      string `gorm:"unique"`
 	//Phone      string `gorm:"unique"`
 	// sql.NullString 唯一索引允许有多个空值，但不能有多个 ""
-	Email      sql.NullString `gorm:"unique"`
-	Phone      sql.NullString `gorm:"unique"`
-	Password   string
-	Nickname   string
-	Birthday   string
-	CreateTime int64
-	UpdateTime int64
-	//DeleteTime int64
+	Email sql.NullString `gorm:"unique"`
+	Phone sql.NullString `gorm:"unique"`
+	// 微信服务的自段
+	WechatUnionId sql.NullString
+	WechatOpenId  sql.NullString `gorm:"unique"`
+	Password      string
+	Nickname      string
+	Birthday      string
+	CreateTime    int64
+	UpdateTime    int64
 }
 
 type GormUserDAO struct {
@@ -87,7 +90,13 @@ func (dao *GormUserDAO) FindById(ctx context.Context, id int64) (User, error) {
 	return u, err
 }
 
-func (dao *GormUserDAO) CompleteInfo(ctx context.Context, u *User) error {
+func (dao *GormUserDAO) FindByWechat(ctx context.Context, openId string) (User, error) {
+	var u User
+	err := dao.db.WithContext(ctx).First(&u, "`wechat_open_id` = ?", openId).Error
+	return u, err
+}
+
+func (dao *GormUserDAO) CompleteInfo(ctx context.Context, u User) error {
 	res := dao.db.WithContext(ctx).Model(&u).Updates(User{
 		Nickname:   u.Nickname,
 		Birthday:   u.Birthday,

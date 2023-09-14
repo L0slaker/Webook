@@ -2,13 +2,12 @@ package web
 
 import (
 	"Prove/webook/internal/domain"
+	"Prove/webook/internal/repository/cache"
 	"Prove/webook/internal/service"
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"net/http"
-	"time"
 )
 
 const biz = "login"
@@ -34,7 +33,7 @@ type UserHandler struct {
 	nicknameRegex         *regexp.Regexp
 	birthdayRegexPattern  *regexp.Regexp
 	telephoneRegexPattern *regexp.Regexp
-	jwtKey                string
+	jwtHandler
 }
 
 func NewUserHandler(svc service.UserAndService, codeSvc service.CodeAndService) *UserHandler {
@@ -186,19 +185,25 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 		return
 	}
 	user, err := u.svc.Login(ctx, info.Email, info.Password)
-
 	if err == service.ErrInvalidUserOrPassword {
 		ctx.JSON(http.StatusBadRequest, Result{
 			Code: 4,
-			Msg:  "邮箱或密码不正确，请重试",
+			Msg:  "邮箱或密码不正确，请重试！",
+		})
+		return
+	}
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, Result{
+			Code: 5,
+			Msg:  "系统错误！",
 		})
 		return
 	}
 
 	if err = u.setJWTToken(ctx, user.Id); err != nil {
-		ctx.JSON(http.StatusBadRequest, Result{
+		ctx.JSON(http.StatusInternalServerError, Result{
 			Code: 5,
-			Msg:  "系统错误",
+			Msg:  "系统错误！",
 		})
 		return
 	}
@@ -239,7 +244,8 @@ func (u *UserHandler) SendLoginSMSCode(ctx *gin.Context) {
 	switch err {
 	case nil:
 		ctx.JSON(http.StatusOK, Result{
-			Msg: "发送成功！",
+			Code: 4,
+			Msg:  "发送成功！",
 		})
 	case service.ErrCodeSendTooMany:
 		ctx.JSON(http.StatusBadRequest, Result{
@@ -267,6 +273,13 @@ func (u *UserHandler) LoginSMS(ctx *gin.Context) {
 		return
 	}
 	ok, err := u.codeSvc.Verify(ctx, biz, req.Phone, req.Code)
+	if err == cache.ErrCodeSendTooMany {
+		ctx.JSON(http.StatusBadRequest, Result{
+			Code: 4,
+			Msg:  "验证次数过多！",
+		})
+		return
+	}
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
 			Code: 5,
@@ -302,7 +315,8 @@ func (u *UserHandler) LoginSMS(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, Result{
-		Msg: "验证通过！",
+		Code: 4,
+		Msg:  "验证通过！",
 	})
 }
 
@@ -387,14 +401,14 @@ func (u *UserHandler) EditJWT(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
 			Code: 5,
-			Msg:  "系统错误",
+			Msg:  "系统错误！",
 		})
 		return
 	}
 	if !birthdayFlag {
 		ctx.JSON(http.StatusBadRequest, Result{
 			Code: 4,
-			Msg:  "生日格式不正确，请以`1992-01-01`这种格式输入",
+			Msg:  "生日格式不正确，请以`1992-01-01`这种格式输入！",
 		})
 		return
 	}
@@ -403,14 +417,14 @@ func (u *UserHandler) EditJWT(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
 			Code: 5,
-			Msg:  "系统错误",
+			Msg:  "系统错误！",
 		})
 		return
 	}
 	if !nicknameFlag {
 		ctx.JSON(http.StatusBadRequest, Result{
 			Code: 4,
-			Msg:  "昵称格式不正确，请输入2-20范围内的字符",
+			Msg:  "昵称格式不正确，请输入2-20范围内的字符！",
 		})
 		return
 	}
@@ -434,13 +448,14 @@ func (u *UserHandler) EditJWT(ctx *gin.Context) {
 	}); err != nil {
 		ctx.JSON(http.StatusBadRequest, Result{
 			Code: 4,
-			Msg:  "更新信息失败，请检查格式",
+			Msg:  "更新信息失败，请检查格式！",
 		})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, Result{
-		Msg: "更新个人信息成功",
+		Code: 4,
+		Msg:  "更新个人信息成功！",
 	})
 }
 
@@ -463,8 +478,8 @@ func (u *UserHandler) Profile(ctx *gin.Context) {
 		"email":        user.Email,
 		"phone number": user.Phone,
 		"birthday":     user.Birthday,
-		"create_at":    user.CreateTime,
-		"update_at":    user.UpdateTime,
+		"create_at":    user.Ctime,
+		"update_at":    user.Utime,
 	})
 }
 
@@ -494,8 +509,8 @@ func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
 		"email":        user.Email,
 		"phone number": user.Phone,
 		"birthday":     user.Birthday,
-		"create_at":    user.CreateTime,
-		"update_at":    user.UpdateTime,
+		"create_at":    user.Ctime,
+		"update_at":    user.Utime,
 	})
 }
 
@@ -510,28 +525,4 @@ func (u *UserHandler) Exit(ctx *gin.Context) {
 		return
 	}
 	ctx.String(http.StatusOK, "退出登陆成功！")
-}
-
-func (u *UserHandler) setJWTToken(ctx *gin.Context, uid int64) error {
-	claims := UserClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 30)),
-		},
-		UserId:    uid,
-		UserAgent: ctx.Request.UserAgent(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
-	tokenString, err := token.SignedString([]byte("OAFXibGNCqeU49DiXzCADjs9up9d7bJz"))
-	if err != nil {
-		return err
-	}
-	ctx.Header("x-jwt-token", tokenString)
-	return nil
-}
-
-type UserClaims struct {
-	jwt.RegisteredClaims
-	UserId    int64
-	UserAgent string
 }
