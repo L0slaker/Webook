@@ -1,148 +1,123 @@
 package main
 
 import (
-	"Prove/webook/internal/repository"
-	"Prove/webook/internal/repository/cache"
-	"Prove/webook/internal/repository/dao"
-	"Prove/webook/internal/service"
-	"Prove/webook/internal/service/sms/memory"
-	"Prove/webook/internal/web"
+	"bytes"
+	"fmt"
+	"github.com/fsnotify/fsnotify"
 	_ "github.com/gin-contrib/sessions/redis"
-	"github.com/redis/go-redis/v9"
-	"gorm.io/gorm"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+	_ "github.com/spf13/viper/remote"
+	"go.uber.org/zap"
 )
 
 func main() {
-	//db := initDB()
-	//r := initWebServer()
-	//rdb := initRedis()
-	//u := initUser(db, rdb)
-	//u.RegisterRoutes(r)
+	//etcdctl --endpoints=127.0.0.1:12379 put /webook (Get-Content -Raw dev.yaml)
+	//etcdctl --endpoints=127.0.0.1:12379 get /webook
+	//initViperV3Remote()
+	initViperV1()
+	initLogger()
+
+	keys := viper.AllKeys()
+	settings := viper.AllSettings()
+	fmt.Println("all keys: ", keys)
+	fmt.Println("all settings: ", settings)
+
 	r := InitWebServer()
-	err := r.Run(":8081")
+	err := r.Run(":8080")
 	if err != nil {
 		panic("端口启动失败")
 	}
 }
 
-// 依赖注入，迁移
-//func initRedis() redis.Cmdable {
-//	redisClient := redis.NewClient(&redis.Options{
-//		Addr: config.Config.Redis.Addr,
-//	})
-//	return redisClient
-//}
+// 需要引入 	_ "github.com/spf13/viper/remote"
+func initViperV3Remote() {
+	// 通过 webook 和其他使用 etcd 的区别出来
+	err := viper.AddRemoteProvider("etcd3",
+		"http://127.0.0.1:12379", "/webook")
+	if err != nil {
+		panic(err)
+	}
+	viper.SetConfigType("yaml")
 
-// 依赖注入，迁移
-//func initDB() *gorm.DB {
-//	db, err := gorm.Open(mysql.Open(config.Config.DB.DSN))
-//	if err != nil {
-//		panic(err)
-//	}
-//	err = dao.InitTables(db)
-//	if err != nil {
-//		panic(err)
-//	}
-//	return db
-//}
+	// 监听配置文件变更
+	err = viper.WatchRemoteConfig()
+	if err != nil {
+		panic(err)
+	}
 
-// 依赖注入，迁移
-// TypeError: Cannot read properties of undefined (reading 'status')
-//func initWebServer() *gin.Engine {
-//	r := gin.Default()
-//	// 跨域机制
-//	r.Use(cors.New(cors.Config{
-//		AllowCredentials: true,
-//		AllowHeaders:     []string{"Content-Type", "Authorization"},
-//		// 加上 ExposeHeaders，前端才能拿到
-//		ExposeHeaders: []string{"x-jwt-token"},
-//		AllowOriginFunc: func(origin string) bool {
-//			if strings.HasPrefix(origin, "http://localhost") {
-//				return true
-//			}
-//			return strings.Contains(origin, "your_company.com")
-//		},
-//		MaxAge: 12 * time.Hour,
-//	}))
-//
-//	// 限流机制
-//	//redisClient := redis.NewClient(&redis.Options{
-//	//	Addr: config.Config.Redis.Addr,
-//	//})
-//	//r.Use(ratelimit.NewBuilder(redisClient, time.Second, 100).Build())
-//
-//	//usingSession(r)
-//	usingJWT(r)
-//	return r
-//}
-
-//func usingSession(r *gin.Engine) {
-//	// 基于cookie
-//	//store := cookie.NewStore([]byte("secret"))
-//	// 基于内存，一般用于单实例部署
-//	// 随机生成的32位密码，第一个参数是 authentication key(身份认证)，第二个参数是 encryption key(数据加密)
-//	//store := memstore.NewStore([]byte("OAFXibGNCqeU49DiXzCADjs9up9d7bJz"), []byte("EdsbuUneoaqBDWlbLvqP1d1gsDX7GoKH"))
-//	// 基于redis，可用于多实例部署
-//	store, err := redis.NewStore(16, "tcp", "localhost:6379", "",
-//		[]byte("OAFXibGNCqeU49DiXzCADjs9up9d7bJz"), []byte("EdsbuUneoaqBDWlbLvqP1d1gsDX7GoKH"))
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	//myStore := &sqlx_store.Store{}
-//
-//	r.Use(sessions.Sessions("ssid", store))
-//	// 校验
-//	login := middleware.NewLoginMiddlewareBuilder()
-//	r.Use(login.IgnorePaths("/users/signup").IgnorePaths("/users/login").Build())
-//}
-
-// 依赖注入，迁移
-//func usingJWT(r *gin.Engine) {
-//	//store := memstore.NewStore([]byte("OAFXibGNCqeU49DiXzCADjs9up9d7bJz"), []byte("EdsbuUneoaqBDWlbLvqP1d1gsDX7GoKH"))
-//	//
-//	//r.Use(sessions.Sessions("ssid", store))
-//	// 校验
-//	login := middleware.NewLoginJWTMiddlewareBuilder()
-//	r.Use(login.
-//		IgnorePaths("/users/signup").
-//		IgnorePaths("/users/login").
-//		IgnorePaths("/users/login_sms/send/code").
-//		IgnorePaths("/users/login_sms").
-//		Build())
-//}
-
-// 依赖注入，迁移
-func initUser(db *gorm.DB, rdb redis.Cmdable) *web.UserHandler {
-	da := dao.NewUserInfoDAO(db)
-	uc := cache.NewUserCache(rdb)
-	repo := repository.NewUserInfoRepository(da, uc)
-	svc := service.NewUserService(repo)
-
-	//var codeCache *cache.CodeCache
-	//store := &sync.Map{}
-	//localCodeCache := cache.NewLocalCodeCache(store)
-	redisCodeCache := cache.NewRedisCodeCache(rdb)
-	codeRepo := repository.NewCodeRepository(redisCodeCache)
-	smsSvc := memory.NewService()
-	//smsSvc := aliyun_v1.NewService(initClient(), signName)
-	codeSvc := service.NewCodeService(codeRepo, smsSvc)
-
-	u := web.NewUserHandler(svc, codeSvc)
-	return u
+	err = viper.ReadRemoteConfig()
+	if err != nil {
+		panic(err)
+	}
 }
 
-//const (
-//	accessKeyId  = "LTAI5tPd2puB2DMpFKyNupGP"
-//	accessSecret = "HHCb1QjkxWjJ2bIeL5tqwsJKMIOxHr"
-//	signName     = "阿里云短信测试"
-//)
-//
-//func initClient() *dysmsapi.Client {
-//	client, err := dysmsapi.NewClientWithAccessKey("cn-hangzhou", accessKeyId, accessSecret)
-//
-//	if err != nil {
-//		panic(err)
-//	}
-//	return client
-//}
+// initLogger 加载日志
+func initLogger() {
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+	// 将自定义的日志记录器（logger）替换为全局的默认日志记录器
+	zap.ReplaceGlobals(logger)
+}
+
+// initViperV1 加载配置
+func initViperV1() {
+	// 要在参数中指定 --config=config/dev.yaml
+	cfile := pflag.String("config",
+		"config/dev.yaml", "配置文件路径")
+	pflag.Parse()
+	// 直接指定文件路径
+	viper.SetConfigFile(*cfile)
+
+	// 监听配置文件变更
+	viper.WatchConfig()
+	viper.OnConfigChange(func(in fsnotify.Event) {
+		// 有些设计不足，当修改配置文件时，只会提示被修改。而没有显示修改前后的变化
+		// 比较好的设计，会在 in 里面告诉你变更前和变更后的数据
+		// 更好的设计，会直接告诉你差异
+		fmt.Println(in.Name, in.Op)
+	})
+	err := viper.ReadInConfig()
+	if err != nil {
+		panic(err)
+	}
+}
+
+func initViperV2() {
+	// 读取的文件名为 dev
+	viper.SetConfigName("dev")
+	// 读取的类型为 yaml
+	viper.SetConfigType("yaml")
+	// 在当前目录的 config 子目录下
+	viper.AddConfigPath("./config")
+	err := viper.ReadInConfig()
+	if err != nil {
+		panic(err)
+	}
+}
+
+func initViperV3() {
+	// 直接指定文件路径
+	viper.SetConfigFile("config/dev.yaml")
+	err := viper.ReadInConfig()
+	if err != nil {
+		panic(err)
+	}
+}
+
+func initViperV4() {
+	viper.SetConfigType("yaml")
+	cfg := `
+db.mysql:
+  dsn: "root:root@tcp(localhost:13316)/webook"
+
+redis:
+  addr: "localhost:6379"
+`
+	err := viper.ReadConfig(bytes.NewReader([]byte(cfg)))
+	if err != nil {
+		panic(err)
+	}
+}

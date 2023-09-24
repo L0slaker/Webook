@@ -6,6 +6,7 @@ import (
 	"Prove/webook/internal/repository/dao"
 	"context"
 	"database/sql"
+	"time"
 )
 
 var (
@@ -19,6 +20,7 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
 	FindByPhone(ctx context.Context, phone string) (*domain.User, error)
 	CompleteInfo(ctx context.Context, u *domain.User) error
+	FindByWechat(ctx context.Context, openId string) (*domain.User, error)
 }
 
 type UserInfoRepository struct {
@@ -85,25 +87,38 @@ func (ur *UserInfoRepository) FindById(ctx context.Context, id int64) (*domain.U
 	// 2.不加载，会降低用户体验
 }
 
+func (ur *UserInfoRepository) FindByWechat(ctx context.Context, openId string) (*domain.User, error) {
+	ue, err := ur.dao.FindByWechat(ctx, openId)
+	if err != nil {
+		return &domain.User{}, err
+	}
+	u := ur.entityToDomain(ue)
+	return u, nil
+}
+
 func (ur *UserInfoRepository) CompleteInfo(ctx context.Context, u *domain.User) error {
 	return ur.dao.CompleteInfo(ctx, dao.User{
 		Id:         u.Id,
 		Nickname:   u.Nickname,
 		Birthday:   u.Birthday,
-		UpdateTime: u.UpdateTime,
+		UpdateTime: u.Utime.UnixMilli(),
 	})
 }
 
 func (ur *UserInfoRepository) entityToDomain(u dao.User) *domain.User {
 	return &domain.User{
-		Id:         u.Id,
-		Email:      u.Email.String,
-		Phone:      u.Phone.String,
-		Password:   u.Password,
-		Nickname:   u.Nickname,
-		Birthday:   u.Birthday,
-		CreateTime: u.CreateTime,
-		UpdateTime: u.UpdateTime,
+		Id:    u.Id,
+		Email: u.Email.String,
+		Phone: u.Phone.String,
+		WechatInfo: domain.WechatInfo{
+			UnionId: u.WechatUnionId.String,
+			OpenId:  u.WechatOpenId.String,
+		},
+		Password: u.Password,
+		Nickname: u.Nickname,
+		Birthday: u.Birthday,
+		Ctime:    time.UnixMilli(u.CreateTime),
+		Utime:    time.UnixMilli(u.UpdateTime),
 	}
 }
 
@@ -120,10 +135,18 @@ func (ur *UserInfoRepository) domainToEntity(u *domain.User) dao.User {
 			// 确实有邮箱
 			Valid: u.Phone != "",
 		},
+		WechatOpenId: sql.NullString{
+			String: u.WechatInfo.OpenId,
+			Valid:  u.WechatInfo.OpenId != "",
+		},
+		WechatUnionId: sql.NullString{
+			String: u.WechatInfo.UnionId,
+			Valid:  u.WechatInfo.UnionId != "",
+		},
 		Password:   u.Password,
 		Nickname:   u.Nickname,
 		Birthday:   u.Birthday,
-		CreateTime: u.CreateTime,
-		UpdateTime: u.UpdateTime,
+		CreateTime: u.Ctime.UnixMilli(),
+		UpdateTime: u.Utime.UnixMilli(),
 	}
 }

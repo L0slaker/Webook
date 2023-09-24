@@ -53,6 +53,7 @@ func (f *FailoverSMSService) SendV1(ctx context.Context, tplId string, args []st
 			return err
 		default:
 			// 其他情况，需要打日志
+			log.Println(err)
 		}
 	}
 	return errors.New("发送失败，所有的服务商都尝试过了")

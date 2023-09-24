@@ -46,11 +46,11 @@ func (svc *CodeService) Send(ctx context.Context, biz, phone string) error {
 	}
 	// 3.发送验证码
 	err = svc.smsSvc.Send(ctx, codeTplId, []string{code}, phone)
-	//if err != nil {
-	//	// 走到这里意味着 Redis 有这个验证码，但是超时了。
-	//	// 可以考虑在这里重试，如果需要重试，在初始化的时候需要传入一个重试的实现smsSvc
-	//	return err
-	//}
+	if err != nil {
+		//	// 走到这里意味着 Redis 有这个验证码，但是超时了。
+		//	// 可以考虑在这里重试，如果需要重试，在初始化的时候需要传入一个重试的实现smsSvc
+		return fmt.Errorf("发送短信出现异常 %w", err)
+	}
 	return err
 }
 

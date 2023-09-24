@@ -9,6 +9,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	gin "github.com/gin-gonic/gin"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -62,6 +63,21 @@ func (m *MockUserAndService) FindOrCreate(ctx context.Context, phone string) (*d
 func (mr *MockUserAndServiceMockRecorder) FindOrCreate(ctx, phone interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOrCreate", reflect.TypeOf((*MockUserAndService)(nil).FindOrCreate), ctx, phone)
+}
+
+// FindOrCreateByWechat mocks base method.
+func (m *MockUserAndService) FindOrCreateByWechat(ctx *gin.Context, wechatInfo domain.WechatInfo) (*domain.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindOrCreateByWechat", ctx, wechatInfo)
+	ret0, _ := ret[0].(*domain.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindOrCreateByWechat indicates an expected call of FindOrCreateByWechat.
+func (mr *MockUserAndServiceMockRecorder) FindOrCreateByWechat(ctx, wechatInfo interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOrCreateByWechat", reflect.TypeOf((*MockUserAndService)(nil).FindOrCreateByWechat), ctx, wechatInfo)
 }
 
 // Login mocks base method.

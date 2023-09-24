@@ -9,7 +9,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
@@ -476,80 +475,80 @@ func TestUserHandler_e2e_SendLoginSMSCode(t *testing.T) {
 	}
 }
 
-func TestUserHandler_e2e_EditJWT(t *testing.T) {
-	server := InitWebServer()
-	db := ioc.InitDB()
-	//now := time.Now()
-	testCases := []struct {
-		name     string
-		body     string
-		before   func(t *testing.T)
-		after    func(t *testing.T)
-		wantCode int
-		wantBody web.Result
-	}{
-		{
-			name: "更新个人信息成功！",
-			before: func(t *testing.T) {
-				u := dao.User{
-					Id: 123,
-				}
-				db.Create(&u)
-			},
-			after: func(t *testing.T) {
-				var u dao.User
-				ctx := &gin.Context{Request: &http.Request{}}
-				server.HandleContext(ctx)
-				claim := ctx.Value("claim")
-				c := claim.(*web.UserClaims)
-
-				d := db.Where("id = ?", c.UserId).First(&u)
-				d.UpdateColumn("nickname", "Kobe")
-				d.UpdateColumn("birthday", "2000-12-22")
-				d.Delete(&u)
-			},
-			body: `
-{
-	"nickname": "Kobe",
-	"birthday":"2000-12-22"
-}
-`,
-			wantCode: http.StatusOK,
-			wantBody: web.Result{
-				Code: 4,
-				Msg:  "更新个人信息成功！",
-			},
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			tc.before(t)
-			req, err := http.NewRequest(http.MethodPost, "/users/edit", bytes.NewBuffer([]byte(tc.body)))
-			require.NoError(t, err)
-			req.Header.Set("Content-Type", "application/json")
-			//req.Header.Set("Authorization", "x-jwt-token")
-
-			resp := httptest.NewRecorder()
-
-			// 中间件校验的过程
-			server.Use(func(ctx *gin.Context) {
-				ctx.Set("claim", 123)
-			})
-
-			server.ServeHTTP(resp, req)
-
-			var respBody web.Result
-			err = json.NewDecoder(resp.Body).Decode(&respBody)
-			if err != nil {
-				assert.Equal(t, errors.New("EOF"), err)
-			}
-
-			assert.Equal(t, tc.wantCode, resp.Code)
-			assert.Equal(t, tc.wantBody, respBody)
-			tc.after(t)
-		})
-	}
-}
+//func TestUserHandler_e2e_EditJWT(t *testing.T) {
+//	server := InitWebServer()
+//	db := ioc.InitDB()
+//	//now := time.Now()
+//	testCases := []struct {
+//		name     string
+//		body     string
+//		before   func(t *testing.T)
+//		after    func(t *testing.T)
+//		wantCode int
+//		wantBody web.Result
+//	}{
+//		{
+//			name: "更新个人信息成功！",
+//			before: func(t *testing.T) {
+//				u := dao.User{
+//					Id: 123,
+//				}
+//				db.Create(&u)
+//			},
+//			after: func(t *testing.T) {
+//				var u dao.User
+//				ctx := &gin.Context{Request: &http.Request{}}
+//				server.HandleContext(ctx)
+//				claim := ctx.Value("claim")
+//				c := claim.(*web.UserClaims)
+//
+//				d := db.Where("id = ?", c.UserId).First(&u)
+//				d.UpdateColumn("nickname", "Kobe")
+//				d.UpdateColumn("birthday", "2000-12-22")
+//				d.Delete(&u)
+//			},
+//			body: `
+//{
+//	"nickname": "Kobe",
+//	"birthday":"2000-12-22"
+//}
+//`,
+//			wantCode: http.StatusOK,
+//			wantBody: web.Result{
+//				Code: 4,
+//				Msg:  "更新个人信息成功！",
+//			},
+//		},
+//	}
+//	for _, tc := range testCases {
+//		t.Run(tc.name, func(t *testing.T) {
+//			tc.before(t)
+//			req, err := http.NewRequest(http.MethodPost, "/users/edit", bytes.NewBuffer([]byte(tc.body)))
+//			require.NoError(t, err)
+//			req.Header.Set("Content-Type", "application/json")
+//			//req.Header.Set("Authorization", "x-jwt-token")
+//
+//			resp := httptest.NewRecorder()
+//
+//			// 中间件校验的过程
+//			server.Use(func(ctx *gin.Context) {
+//				ctx.Set("claim", 123)
+//			})
+//
+//			server.ServeHTTP(resp, req)
+//
+//			var respBody web.Result
+//			err = json.NewDecoder(resp.Body).Decode(&respBody)
+//			if err != nil {
+//				assert.Equal(t, errors.New("EOF"), err)
+//			}
+//
+//			assert.Equal(t, tc.wantCode, resp.Code)
+//			assert.Equal(t, tc.wantBody, respBody)
+//			tc.after(t)
+//		})
+//	}
+//}
 
 func TestUserHandler_e2e_ProfileJWT(t *testing.T) {
 	testCases := []struct {

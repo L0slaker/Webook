@@ -18,7 +18,7 @@ type RatelimitSMSService struct {
 	limit ratelimit.Limiter
 }
 
-func NewService(svc sms.Service, limit ratelimit.Limiter) sms.Service {
+func NewRatelimitSMSService(svc sms.Service, limit ratelimit.Limiter) sms.Service {
 	return &RatelimitSMSService{
 		svc:   svc,
 		limit: limit,

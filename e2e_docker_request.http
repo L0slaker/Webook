@@ -1,5 +1,10 @@
+### 退出登录
+GET http://localhost:8080/users/exit
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTU0NzU2MjQsIlVzZXJJZCI6MSwiU3NpZCI6IjIzZTgwNWUwLTQ3MWEtNDE3My04YzkxLTgzZDcyNDc0OWM0OSIsIlVzZXJBZ2VudCI6IkFwYWNoZS1IdHRwQ2xpZW50LzQuNS4xMyAoSmF2YS8xNy4wLjMpIn0.GKREl-7P0ETYK-eWdaVfeUNwgj39p5UJU-1_cw00REujFgwXnX4i3HCn9c93aB-w7pafaO-L9dxTvGuxIYbInw
+
 ### 校验手机验证码
-POST http://localhost:8081/users/login_sms
+POST http://localhost:8080/users/login_sms
 Content-Type: application/json
 
 {
@@ -8,7 +13,7 @@ Content-Type: application/json
 }
 
 ### 获取手机验证码
-POST http://localhost:8081/users/login_sms/send/code
+POST http://localhost:8080/users/login_sms/send/code
 Content-Type: application/json
 
 {
@@ -16,16 +21,16 @@ Content-Type: application/json
 }
 
 ### 信息展示
-GET http://localhost:8081/users/profile
+GET http://localhost:8080/users/profile
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTMxNDQ1MTcsIlVzZXJJZCI6MSwiVXNlckFnZW50IjoiQXBhY2hlLUh0dHBDbGllbnQvNC41LjEzIChKYXZhLzE3LjAuMykifQ.3dy013-PTAiKO-4AKP65BwLCoTKeefTbPSNvK5IAbVo9WowTSlyxVM3PFF8efaYCj5g7HScY9oEkA9JB3IREqA
+Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTU0NzU2MjQsIlVzZXJJZCI6MSwiU3NpZCI6IjIzZTgwNWUwLTQ3MWEtNDE3My04YzkxLTgzZDcyNDc0OWM0OSIsIlVzZXJBZ2VudCI6IkFwYWNoZS1IdHRwQ2xpZW50LzQuNS4xMyAoSmF2YS8xNy4wLjMpIn0.GKREl-7P0ETYK-eWdaVfeUNwgj39p5UJU-1_cw00REujFgwXnX4i3HCn9c93aB-w7pafaO-L9dxTvGuxIYbInw
 //Cookie: ssid=MTY5MTc2NDI0NHxEdi1CQkFFQ180SUFBUkFCRUFBQUhfLUNBQUVHYzNSeWFXNW5EQWdBQm5WelpYSkpaQVZwYm5RMk5BUUNBQVE9fBSJ76hM1ZDqFolm5MmWEGRdMfOxnj-c99bmC7zWg4qd
 
 ### 信息修改
-POST http://localhost:8081/users/edit
+POST http://localhost:8080/users/edit
 Content-Type: application/json
 #Cookie: ssid=MTY5MTc2NDI0NHxEdi1CQkFFQ180SUFBUkFCRUFBQUhfLUNBQUVHYzNSeWFXNW5EQWdBQm5WelpYSkpaQVZwYm5RMk5BUUNBQVE9fBSJ76hM1ZDqFolm5MmWEGRdMfOxnj-c99bmC7zWg4qd
-Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTMxNDQ1MTcsIlVzZXJJZCI6MSwiVXNlckFnZW50IjoiQXBhY2hlLUh0dHBDbGllbnQvNC41LjEzIChKYXZhLzE3LjAuMykifQ.3dy013-PTAiKO-4AKP65BwLCoTKeefTbPSNvK5IAbVo9WowTSlyxVM3PFF8efaYCj5g7HScY9oEkA9JB3IREqA
+Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTU0NzU2MjQsIlVzZXJJZCI6MSwiU3NpZCI6IjIzZTgwNWUwLTQ3MWEtNDE3My04YzkxLTgzZDcyNDc0OWM0OSIsIlVzZXJBZ2VudCI6IkFwYWNoZS1IdHRwQ2xpZW50LzQuNS4xMyAoSmF2YS8xNy4wLjMpIn0.GKREl-7P0ETYK-eWdaVfeUNwgj39p5UJU-1_cw00REujFgwXnX4i3HCn9c93aB-w7pafaO-L9dxTvGuxIYbInw
 
 {
   "nickname": "Kobe",
@@ -33,7 +38,7 @@ Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTMxNDQ1M
 }
 
 ### 登陆
-POST http://localhost:8081/users/login
+POST http://localhost:8080/users/login
 Content-Type: application/json
 
 {
@@ -43,7 +48,7 @@ Content-Type: application/json
 }
 
 ### 注册
-POST http://localhost:8081/users/signup
+POST http://localhost:8080/users/signup
 Content-Type: application/json
 
 {

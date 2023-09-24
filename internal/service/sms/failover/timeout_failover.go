@@ -15,15 +15,18 @@ type TimeoutFailoverSMSService struct {
 	svcs      []sms.Service
 }
 
-func NewTimeoutFailoverSMSService() sms.Service {
-	return &TimeoutFailoverSMSService{}
+func NewTimeoutFailoverSMSService(svcs []sms.Service, threshold int32) *TimeoutFailoverSMSService {
+	return &TimeoutFailoverSMSService{
+		svcs:      svcs,
+		threshold: threshold,
+	}
 }
 
 func (t *TimeoutFailoverSMSService) Send(ctx context.Context, tplId string, args []string, numbers ...string) error {
 	idx := atomic.LoadInt32(&t.idx)
 	cnt := atomic.LoadInt32(&t.cnt)
 
-	if cnt > t.threshold {
+	if cnt >= t.threshold {
 		// 切换 id
 		newIdx := (idx + 1) % int32(len(t.svcs))
 		if atomic.CompareAndSwapInt32(&t.idx, idx, newIdx) {
@@ -40,10 +43,10 @@ func (t *TimeoutFailoverSMSService) Send(ctx context.Context, tplId string, args
 	switch err {
 	case nil:
 		// 连续状态被打断
-		atomic.AddInt32(&t.cnt, 0)
+		atomic.StoreInt32(&t.cnt, 0)
 	case context.DeadlineExceeded:
 		// 超时
-		atomic.StoreInt32(&t.cnt, 1)
+		atomic.AddInt32(&t.cnt, 1)
 	default:
 		// 未知错误，返回错误或换下一个
 	}

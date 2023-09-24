@@ -41,7 +41,7 @@ func CreateClient(accessKeyId *string, accessKeySecret *string) *dysms.Client {
 	return res
 }
 
-func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers ...string) error {
+func (s *Service) Send(ctx context.Context, biz string, args []string, numbers ...string) error {
 	argsMap := make(map[string]string, len(args))
 	for k, arg := range args {
 		argsMap[strconv.Itoa(k)] = arg
@@ -56,7 +56,7 @@ func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers
 		//PhoneNumbers:  tea.String("13509516520"),
 		//TemplateParam: tea.String("{\"code\":\"123456\"}"),
 		SignName:      ekit.ToPtr[string](s.signName),
-		TemplateCode:  ekit.ToPtr[string](tplId),
+		TemplateCode:  ekit.ToPtr[string](biz),
 		PhoneNumbers:  ekit.ToPtr[string](strings.Join(numbers, ",")),
 		TemplateParam: ekit.ToPtr[string](string(bCode)),
 	}

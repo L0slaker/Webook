@@ -7,12 +7,14 @@ local key = KEYS[1]
 -- 窗口大小
 local window = tonumber(ARGV[1])
 -- 阈值
-local threshold = tonumber( ARGV[2])
+local threshold = tonumber(ARGV[2])
 local now = tonumber(ARGV[3])
 -- 窗口的起始时间
 local min = now - window
 
+-- 移除在窗口起始时间之前的元素
 redis.call('ZREMRANGEBYSCORE', key, '-inf', min)
+-- 获取有序集合中的元素数量
 local cnt = redis.call('ZCOUNT', key, '-inf', '+inf')
 -- local cnt = redis.call('ZCOUNT', key, min, '+inf')
 if cnt >= threshold then

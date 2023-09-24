@@ -26,7 +26,7 @@ func NewService(client *sms.Client, appId string, signName string) *Service {
 	}
 }
 
-func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers ...string) error {
+func (s *Service) Send(ctx context.Context, biz string, args []string, numbers ...string) error {
 	//// 侵入式的设计
 	//limited, err := s.limit.Limit(ctx, key)
 	//if err != nil {
@@ -42,7 +42,7 @@ func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers
 	req := sms.NewSendSmsRequest()
 	req.SmsSdkAppId = s.appId
 	req.SignName = s.signName
-	req.TemplateId = ekit.ToPtr[string](tplId)
+	req.TemplateId = ekit.ToPtr[string](biz)
 	req.PhoneNumberSet = s.toStringPtr(numbers)
 	req.TemplateParamSet = s.toStringPtr(args)
 	resp, err := s.client.SendSms(req)
@@ -58,11 +58,11 @@ func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers
 	return nil
 }
 
-func (s *Service) SendV1(ctx context.Context, tplId string, args []mysms.NameArg, numbers ...string) error {
+func (s *Service) SendV1(ctx context.Context, biz string, args []mysms.NameArg, numbers ...string) error {
 	req := sms.NewSendSmsRequest()
 	req.SmsSdkAppId = s.appId
 	req.SignName = s.signName
-	req.TemplateId = ekit.ToPtr[string](tplId)
+	req.TemplateId = ekit.ToPtr[string](biz)
 	req.PhoneNumberSet = s.toStringPtr(numbers)
 	req.TemplateParamSet = slice.Map[mysms.NameArg, *string](args, func(idx int, src mysms.NameArg) *string {
 		return &src.Val

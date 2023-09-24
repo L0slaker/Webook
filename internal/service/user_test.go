@@ -96,11 +96,11 @@ func TestUserService_Login(t *testing.T) {
 				userRepo := repomocks.NewMockUserRepository(ctrl)
 				userRepo.EXPECT().FindByEmail(gomock.Any(), "l0slakers@gmail.com").
 					Return(&domain.User{
-						Email:      "l0slakers@gmail.com",
-						Password:   "$2a$10$K0T3cJ5hAbFIAhJiRcd1durGTO7/E5pn7nYPmk6f9bTkixxMMtEmm",
-						Phone:      "13355779876",
-						CreateTime: now.UnixMilli(),
-						UpdateTime: now.UnixMilli(),
+						Email:    "l0slakers@gmail.com",
+						Password: "$2a$10$K0T3cJ5hAbFIAhJiRcd1durGTO7/E5pn7nYPmk6f9bTkixxMMtEmm",
+						Phone:    "13355779876",
+						Ctime:    now,
+						Utime:    now,
 					}, nil)
 				return userRepo
 			},
@@ -115,20 +115,20 @@ func TestUserService_Login(t *testing.T) {
 				userRepo := repomocks.NewMockUserRepository(ctrl)
 				userRepo.EXPECT().FindByEmail(gomock.Any(), "l0slakers@gmail.com").
 					Return(&domain.User{
-						Email:      "l0slakers@gmail.com",
-						Password:   "$2a$10$K0T3cJ5hAbFIAhJiRcd1durGTO7/E5pn7nYPmk6f9bTkixxMMtEmm",
-						Phone:      "13355779876",
-						CreateTime: now.UnixMilli(),
-						UpdateTime: now.UnixMilli(),
+						Email:    "l0slakers@gmail.com",
+						Password: "$2a$10$K0T3cJ5hAbFIAhJiRcd1durGTO7/E5pn7nYPmk6f9bTkixxMMtEmm",
+						Phone:    "13355779876",
+						Ctime:    now,
+						Utime:    now,
 					}, nil)
 				return userRepo
 			},
 			wantUser: &domain.User{
-				Email:      "l0slakers@gmail.com",
-				Password:   "$2a$10$K0T3cJ5hAbFIAhJiRcd1durGTO7/E5pn7nYPmk6f9bTkixxMMtEmm",
-				Phone:      "13355779876",
-				CreateTime: now.UnixMilli(),
-				UpdateTime: now.UnixMilli(),
+				Email:    "l0slakers@gmail.com",
+				Password: "$2a$10$K0T3cJ5hAbFIAhJiRcd1durGTO7/E5pn7nYPmk6f9bTkixxMMtEmm",
+				Phone:    "13355779876",
+				Ctime:    now,
+				Utime:    now,
 			},
 			wantErr: nil,
 		},
@@ -198,26 +198,26 @@ func TestUserService_Profile(t *testing.T) {
 				userRepo := repomocks.NewMockUserRepository(ctrl)
 				userRepo.EXPECT().FindById(gomock.Any(), gomock.Any()).
 					Return(&domain.User{
-						Id:         123,
-						Email:      "l0slakers@gmail.com",
-						Phone:      "13378899456",
-						Password:   "$2a$10$K0T3cJ5hAbFIAhJiRcd1durGTO7/E5pn7nYPmk6f9bTkixxMMtEmm",
-						Nickname:   "l0slakers",
-						Birthday:   "2000-12-14",
-						CreateTime: now.UnixMilli(),
-						UpdateTime: now.UnixMilli(),
+						Id:       123,
+						Email:    "l0slakers@gmail.com",
+						Phone:    "13378899456",
+						Password: "$2a$10$K0T3cJ5hAbFIAhJiRcd1durGTO7/E5pn7nYPmk6f9bTkixxMMtEmm",
+						Nickname: "l0slakers",
+						Birthday: "2000-12-14",
+						Ctime:    now,
+						Utime:    now,
 					}, nil)
 				return userRepo
 			},
 			wantUser: &domain.User{
-				Id:         123,
-				Email:      "l0slakers@gmail.com",
-				Phone:      "13378899456",
-				Password:   "$2a$10$K0T3cJ5hAbFIAhJiRcd1durGTO7/E5pn7nYPmk6f9bTkixxMMtEmm",
-				Nickname:   "l0slakers",
-				Birthday:   "2000-12-14",
-				CreateTime: now.UnixMilli(),
-				UpdateTime: now.UnixMilli(),
+				Id:       123,
+				Email:    "l0slakers@gmail.com",
+				Phone:    "13378899456",
+				Password: "$2a$10$K0T3cJ5hAbFIAhJiRcd1durGTO7/E5pn7nYPmk6f9bTkixxMMtEmm",
+				Nickname: "l0slakers",
+				Birthday: "2000-12-14",
+				Ctime:    now,
+				Utime:    now,
 			},
 			wantErr: nil,
 		},
@@ -251,18 +251,18 @@ func TestUserService_FindOrCreate(t *testing.T) {
 				userRepo := repomocks.NewMockUserRepository(ctrl)
 				userRepo.EXPECT().FindByPhone(gomock.Any(), "13355779876").
 					Return(&domain.User{
-						Id:         123,
-						Phone:      "13355779876",
-						CreateTime: now.UnixMilli(),
-						UpdateTime: now.UnixMilli(),
+						Id:    123,
+						Phone: "13355779876",
+						Ctime: now,
+						Utime: now,
 					}, nil)
 				return userRepo
 			},
 			wantUser: &domain.User{
-				Id:         123,
-				Phone:      "13355779876",
-				CreateTime: now.UnixMilli(),
-				UpdateTime: now.UnixMilli(),
+				Id:    123,
+				Phone: "13355779876",
+				Ctime: now,
+				Utime: now,
 			},
 			wantErr: nil,
 		},
@@ -277,18 +277,18 @@ func TestUserService_FindOrCreate(t *testing.T) {
 					Return(nil)
 				userRepo.EXPECT().FindByPhone(gomock.Any(), "13355779876").
 					Return(&domain.User{
-						Id:         456,
-						Phone:      "13355779876",
-						CreateTime: now.UnixMilli(),
-						UpdateTime: now.UnixMilli(),
+						Id:    456,
+						Phone: "13355779876",
+						Ctime: now,
+						Utime: now,
 					}, nil)
 				return userRepo
 			},
 			wantUser: &domain.User{
-				Id:         456,
-				Phone:      "13355779876",
-				CreateTime: now.UnixMilli(),
-				UpdateTime: now.UnixMilli(),
+				Id:    456,
+				Phone: "13355779876",
+				Ctime: now,
+				Utime: now,
 			},
 			wantErr: nil,
 		},

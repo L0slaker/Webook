@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dysmsapi"
-	"strconv"
+	"go.uber.org/zap"
 	"strings"
 )
 
@@ -22,7 +22,7 @@ func NewService(client *dysmsapi.Client, signName string) *Service {
 	}
 }
 
-func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers ...string) error {
+func (s *Service) Send(ctx context.Context, biz string, args []string, numbers ...string) error {
 	req := dysmsapi.CreateSendSmsRequest()
 	req.Scheme = "http"
 	// 阿里云手机号由字符串逗号间隔
@@ -31,8 +31,8 @@ func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers
 
 	// 需要一个map
 	argsMap := make(map[string]string, len(args))
-	for k, arg := range args {
-		argsMap[strconv.Itoa(k)] = arg
+	for _, arg := range args {
+		argsMap["code"] = arg
 	}
 
 	bCode, err := json.Marshal(argsMap)
@@ -40,10 +40,13 @@ func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers
 		return err
 	}
 	req.TemplateParam = string(bCode)
-	req.TemplateCode = tplId
+	//req.TemplateParam = string(bCode)
+	req.TemplateCode = biz
 
 	var resp *dysmsapi.SendSmsResponse
 	resp, err = s.client.SendSms(req)
+	zap.L().Debug("发送短信", zap.Error(err),
+		zap.Any("req", req), zap.Any("resp", resp))
 	if err != nil {
 		return err
 	}

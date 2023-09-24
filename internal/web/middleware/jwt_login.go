@@ -1,18 +1,17 @@
 package middleware
 
 import (
-	"Prove/webook/internal/web"
+	ijwt "Prove/webook/internal/web/jwt"
 	"encoding/gob"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"log"
 	"net/http"
-	"strings"
 	"time"
 )
 
 type LoginJWTMiddlewareBuilder struct {
 	paths []string
+	ijwt.Handler
 }
 
 func (l *LoginJWTMiddlewareBuilder) IgnorePaths(path string) *LoginJWTMiddlewareBuilder {
@@ -20,8 +19,10 @@ func (l *LoginJWTMiddlewareBuilder) IgnorePaths(path string) *LoginJWTMiddleware
 	return l
 }
 
-func NewLoginJWTMiddlewareBuilder() *LoginJWTMiddlewareBuilder {
-	return &LoginJWTMiddlewareBuilder{}
+func NewLoginJWTMiddlewareBuilder(jwtHandler ijwt.Handler) *LoginJWTMiddlewareBuilder {
+	return &LoginJWTMiddlewareBuilder{
+		Handler: jwtHandler,
+	}
 }
 
 func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
@@ -33,14 +34,8 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			}
 		}
 
-		header := ctx.GetHeader("Authorization")
-		if header == "" {
-			ctx.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-		segments := strings.SplitN(header, " ", 2)
-		tokenString := segments[1]
-		claims := &web.UserClaims{}
+		tokenString := l.ExtractToken(ctx)
+		claims := &ijwt.UserClaims{}
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte("OAFXibGNCqeU49DiXzCADjs9up9d7bJz"), nil
 		})
@@ -56,17 +51,25 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			return
 		}
 
-		// 刷新 token / 10s
-		if claims.ExpiresAt.Sub(time.Now()) < 50 {
-			// 检查过期
-			claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute))
-			tokenString, err = token.SignedString([]byte("OAFXibGNCqeU49DiXzCADjs9up9d7bJz"))
-			if err != nil {
-				// 记录日志
-				log.Println("续约失败", err)
-			}
-			ctx.Header("x-jwt-token", tokenString)
+		// 验证ssid
+		err = l.CheckSession(ctx, claims.Ssid)
+		if err != nil {
+			// 系统错误或用户已经退出登录
+			// 这里同样也可以考虑在 redis 崩溃后就不去校验是否主动退出登录
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+			return
 		}
+		//// 刷新 token / 10s
+		//if claims.ExpiresAt.Sub(time.Now()) < 50 {
+		//	// 检查过期
+		//	claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute))
+		//	tokenString, err = token.SignedString([]byte("OAFXibGNCqeU49DiXzCADjs9up9d7bJz"))
+		//	if err != nil {
+		//		// 记录日志
+		//		log.Println("续约失败", err)
+		//	}
+		//	ctx.Header("x-jwt-token", tokenString)
+		//}
 
 		// 为其它功能提供claims
 		ctx.Set("claims", claims)
