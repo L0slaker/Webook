@@ -52,10 +52,6 @@ func NewUserInfoDAO(db *gorm.DB) UserDAO {
 	}
 }
 
-func InitTables(db *gorm.DB) error {
-	return db.AutoMigrate(&User{})
-}
-
 func (dao *GormUserDAO) Insert(ctx context.Context, u User) error {
 	now := time.Now().UnixMilli()
 	u.CreateTime = now

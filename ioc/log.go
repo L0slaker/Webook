@@ -8,6 +8,12 @@ import (
 // InitLogger 全局共享的日志
 func InitLogger() logger.LoggerV1 {
 	l, err := zap.NewDevelopment()
+	//cfg := zap.NewDevelopmentConfig()
+	//err := viper.UnmarshalKey("log", &cfg)
+	if err != nil {
+		panic(err)
+	}
+	//l, err := cfg.Build()
 	if err != nil {
 		panic(err)
 	}

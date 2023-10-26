@@ -4,12 +4,18 @@ import (
 	"bytes"
 	"context"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/atomic"
 	"io"
 	"time"
 )
 
+// MiddlewareBuilder 注意点：
+// 1.小心日志内容过多。URL 可能很长，请求体，响应体可能都很大，要考虑是否完全输出到日志里面
+// 2.考虑 1 的问题，以及用户可能换用不同的日志框架，所以要有足够的灵活性
+// 3.考虑动态开关，结合监听配置文件，注意并发安全
 type MiddlewareBuilder struct {
-	allowReqBody  bool
+	//allowReqBody bool
+	allowReqBody  atomic.Bool
 	allowRespBody bool
 	loggerFunc    func(ctx context.Context, al *AccessLog)
 }
@@ -42,7 +48,7 @@ func (m *MiddlewareBuilder) Build() gin.HandlerFunc {
 			Url: url,
 		}
 		// 读取请求
-		if m.allowReqBody && ctx.Request.Body != nil {
+		if m.allowReqBody.Load() && ctx.Request.Body != nil {
 			// 这是一个很消耗 CPU 和 内存的操作，因为会引起复制
 			//body, _ := io.ReadAll(ctx.Request.Body)
 			body, _ := ctx.GetRawData()
@@ -73,8 +79,8 @@ func (m *MiddlewareBuilder) Build() gin.HandlerFunc {
 	}
 }
 
-func (m *MiddlewareBuilder) AllowReqBody() *MiddlewareBuilder {
-	m.allowReqBody = true
+func (m *MiddlewareBuilder) AllowReqBody(ok bool) *MiddlewareBuilder {
+	m.allowReqBody.Store(ok)
 	return m
 }
 

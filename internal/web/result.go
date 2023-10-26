@@ -1,8 +1,12 @@
 package web
 
+import "Prove/webook/pkg/ginx"
+
+type Result = ginx.Result
+
 // Result 统一格式规定后端返回值
-type Result struct {
-	Code int    `json:"code"`
-	Msg  string `json:"msg"`
-	Data any    `json:"data"`
-}
+//type Result struct {
+//	Code int    `json:"code"`
+//	Msg  string `json:"msg"`
+//	Data any    `json:"data"`
+//}

@@ -52,7 +52,7 @@ POST http://localhost:8080/users/signup
 Content-Type: application/json
 
 {
-  "email": "l0slakers@gmail.com",
-  "password": "Abcd#1234",
-  "confirmPassword": "Abcd#1234"
+  "email": "1141688633@qq.com",
+  "password": "Abcd#W123",
+  "confirmPassword": "Abcd#W123"
 }

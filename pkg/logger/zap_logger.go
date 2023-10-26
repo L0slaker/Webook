@@ -28,6 +28,12 @@ func (z *ZapLogger) Error(msg string, args ...Field) {
 	z.l.Error(msg, z.toZapFields(args...)...)
 }
 
+func (z *ZapLogger) With(args ...Field) LoggerV1 {
+	return &ZapLogger{
+		l: z.l.With(z.toZapFields(args...)...),
+	}
+}
+
 func (z *ZapLogger) toZapFields(args ...Field) []zap.Field {
 	res := make([]zap.Field, 0, len(args))
 	for _, arg := range args {

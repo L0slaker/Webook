@@ -16,7 +16,7 @@ func main() {
 	//etcdctl --endpoints=127.0.0.1:12379 get /webook
 	//initViperV3Remote()
 	initViperV1()
-	initLogger()
+	//initLogger()
 
 	keys := viper.AllKeys()
 	settings := viper.AllSettings()

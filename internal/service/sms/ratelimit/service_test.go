@@ -41,7 +41,7 @@ func TestRatelimitSMSService_Send(t *testing.T) {
 					Return(true, nil)
 				return svc, limit
 			},
-			wantErr: errLimited,
+			wantErr: ErrLimited,
 		},
 		{
 			name: "限流器异常",

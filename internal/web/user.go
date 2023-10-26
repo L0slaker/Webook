@@ -5,6 +5,9 @@ import (
 	"Prove/webook/internal/repository/cache"
 	"Prove/webook/internal/service"
 	ijwt "Prove/webook/internal/web/jwt"
+	"Prove/webook/pkg/ginx"
+	"Prove/webook/pkg/logger"
+	"fmt"
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -29,6 +32,8 @@ const (
 	telephoneRegexPattern = `^(?:\+?86)?1[3-9]\d{9}$`
 )
 
+var _ handler = (*UserHandler)(nil)
+
 type UserHandler struct {
 	svc                   service.UserAndService
 	codeSvc               service.CodeAndService
@@ -39,13 +44,16 @@ type UserHandler struct {
 	telephoneRegexPattern *regexp.Regexp
 	ijwt.Handler
 	cmd redis.Cmdable
+	l   logger.LoggerV1
 }
 
-func NewUserHandler(svc service.UserAndService, codeSvc service.CodeAndService, jwtHandler ijwt.Handler) *UserHandler {
+func NewUserHandler(svc service.UserAndService, codeSvc service.CodeAndService,
+	jwtHandler ijwt.Handler, l logger.LoggerV1) *UserHandler {
 	return &UserHandler{
 		svc:                   svc,
 		codeSvc:               codeSvc,
 		Handler:               jwtHandler,
+		l:                     l,
 		emailRegexExp:         regexp.MustCompile(emailRegexPattern, regexp.None),
 		passwordRegexExp:      regexp.MustCompile(passwordRegexPattern, regexp.None),
 		nicknameRegex:         regexp.MustCompile(nicknameRegexPattern, regexp.None),
@@ -179,46 +187,43 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 	})
 }
 
-// LoginJWT 使用JWT校验
-func (u *UserHandler) LoginJWT(ctx *gin.Context) {
-	type LoginRequest struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+type LoginReq struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
 
-	var info LoginRequest
-	if err := ctx.Bind(&info); err != nil {
-		return
-	}
-	user, err := u.svc.Login(ctx, info.Email, info.Password)
+// LoginJWT 使用JWT校验
+func (u *UserHandler) LoginJWT(ctx *gin.Context, req LoginReq) (Result, error) {
+	user, err := u.svc.Login(ctx, req.Email, req.Password)
 	if err == service.ErrInvalidUserOrPassword {
-		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 4,
-			Msg:  "邮箱或密码不正确，请重试！",
-		})
-		return
+		//ctx.JSON(http.StatusBadRequest, Result{
+		//	Code: 4,
+		//	Msg:  "邮箱或密码不正确，请重试！",
+		//})
+		return Result{Code: 4, Msg: "邮箱或密码不正确，请重试！"}, fmt.Errorf("邮箱或密码不正确 %w！", err)
 	}
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
-			Msg:  "系统错误！",
-		})
-		return
+		//ctx.JSON(http.StatusInternalServerError, Result{
+		//	Code: 5,
+		//	Msg:  "系统错误！",
+		//})
+		return Result{Code: 5, Msg: "系统错误！"}, nil
 	}
 
 	// 生成JWT Token
 	if err = u.SetLoginToken(ctx, user.Id); err != nil {
-		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
-			Msg:  "系统错误！",
-		})
-		return
+		//ctx.JSON(http.StatusInternalServerError, Result{
+		//	Code: 5,
+		//	Msg:  "系统错误！",
+		//})
+		return Result{Code: 5, Msg: "系统错误！"}, fmt.Errorf("生成 JWT Token 出错 %w", err)
 	}
 
-	ctx.JSON(http.StatusOK, Result{
-		Code: 4,
-		Msg:  "登陆成功！",
-	})
+	//ctx.JSON(http.StatusOK, Result{
+	//	Code: 4,
+	//	Msg:  "登陆成功！",
+	//})
+	return Result{Msg: "登陆成功！"}, nil
 }
 
 // SendLoginSMSCode 验证码登陆
@@ -270,65 +275,62 @@ func (u *UserHandler) SendLoginSMSCode(ctx *gin.Context) {
 	}
 }
 
+type LoginSMSReq struct {
+	Phone string `json:"phone"`
+	Code  string `json:"code"`
+}
+
 // LoginSMS 校验验证码
-func (u *UserHandler) LoginSMS(ctx *gin.Context) {
-	type Request struct {
-		Phone string `json:"phone"`
-		Code  string `json:"code"`
-	}
-	var req Request
-	if err := ctx.Bind(&req); err != nil {
-		return
-	}
+func (u *UserHandler) LoginSMS(ctx *gin.Context, req LoginSMSReq) (ginx.Result, error) {
 	ok, err := u.codeSvc.Verify(ctx, biz, req.Phone, req.Code)
 	if err == cache.ErrCodeSendTooMany {
-		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 4,
-			Msg:  "验证次数过多！",
-		})
-		return
+		//ctx.JSON(http.StatusBadRequest, Result{
+		//	Code: 4,
+		//	Msg:  "验证次数过多！",
+		//})
+		return Result{Code: 4, Msg: "验证次数过多！"}, fmt.Errorf("验证次数过多 %w！", err)
 	}
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
-			Msg:  "系统错误！",
-		})
-		zap.L().Error("校验验证码出错！", zap.Error(err))
+		//ctx.JSON(http.StatusInternalServerError, Result{
+		//	Code: 5,
+		//	Msg:  "系统错误！",
+		//})
+		//zap.L().Error("校验验证码出错！", zap.Error(err))
 		// 小心敏感信息的问题，如果线上开了DEBUG级别，需要删除此段
-		zap.L().Debug("", zap.String("手机号码", req.Phone))
-		return
+		//zap.L().Debug("", zap.String("手机号码", req.Phone))
+		return Result{Code: 5, Msg: "系统错误！"}, fmt.Errorf("校验验证码出错 %w！", err)
 	}
 	if !ok {
-		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 4,
-			Msg:  "验证码有误！",
-		})
-		return
+		//ctx.JSON(http.StatusBadRequest, Result{
+		//	Code: 4,
+		//	Msg:  "验证码有误！",
+		//})
+		return Result{Code: 4, Msg: "验证码有误！"}, nil
 	}
 
 	// 输入的手机号有可能是新用户
 	user, err := u.svc.FindOrCreate(ctx, req.Phone)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
-			Msg:  "系统错误！",
-		})
-		return
+		//ctx.JSON(http.StatusInternalServerError, Result{
+		//	Code: 5,
+		//	Msg:  "系统错误！",
+		//})
+		return Result{Code: 5, Msg: "系统错误！"}, fmt.Errorf("登陆或注册用户失败 %w！", err)
 	}
 
 	// 生成JWT Token
 	if err = u.SetLoginToken(ctx, user.Id); err != nil {
-		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
-			Msg:  "系统错误！",
-		})
-		return
+		//ctx.JSON(http.StatusInternalServerError, Result{
+		//	Code: 5,
+		//	Msg:  "系统错误！",
+		//})
+		return Result{Code: 5, Msg: "系统错误！"}, fmt.Errorf("生成 JWT Token 失败 %w！", err)
 	}
 
-	ctx.JSON(http.StatusOK, Result{
-		Code: 4,
-		Msg:  "验证通过！",
-	})
+	//ctx.JSON(http.StatusOK, Result{
+	//	Msg:  "验证通过！",
+	//})
+	return Result{Msg: "验证通过！"}, nil
 }
 
 // Edit 编辑功能,允许用户补充基本个人信息

@@ -2,6 +2,7 @@ package failover
 
 import (
 	"Prove/webook/internal/service/sms"
+	"Prove/webook/internal/service/sms/ratelimit"
 	"context"
 	"sync/atomic"
 	"time"
@@ -34,30 +35,43 @@ func (t *ResponseTimeoutFailoverSMSService) Send(ctx context.Context, tplId stri
 		// 连续状态被打断
 		atomic.StoreInt32(&t.timeoutCnt, 0)
 		atomic.StoreInt32(&t.totalCnt, 0)
-	}
 
-	// 记录每个服务商的响应时间
-	responseTime := time.Since(startTime)
-	atomic.StoreInt32(&t.responseTimes[idx], int32(responseTime))
+		// 记录每个服务商的响应时间
+		responseTime := time.Since(startTime)
+		atomic.StoreInt32(&t.responseTimes[idx], int32(responseTime))
 
-	if responseTime > time.Second*2 {
-		// 记录超过2s的响应
-		atomic.AddInt32(&t.timeoutCnt, 1)
-	}
-	atomic.AddInt32(&t.totalCnt, 1)
-	// 超时比率
-	timeoutRate := t.timeoutCnt / t.totalCnt
-
-	// 有10次响应以上且超时比率>20% -> 更换服务
-	if t.totalCnt > 10 && float64(timeoutRate) > 0.2 {
-		newIdx := (idx + 1) % int32(len(t.svcs))
-		if atomic.CompareAndSwapInt32(&t.idx, idx, newIdx) {
-			// 往后挪一位，将超时次数设为 0
-			atomic.StoreInt32(&t.timeoutCnt, 0)
-			atomic.StoreInt32(&t.totalCnt, 0)
+		if responseTime > time.Second*1 {
+			// 记录超过1s的响应
+			atomic.AddInt32(&t.timeoutCnt, 1)
 		}
-		// else 就是出现并发，别人换成功了;idx = newIdx
-		idx = atomic.LoadInt32(&t.idx)
+		atomic.AddInt32(&t.totalCnt, 1)
+		// 超时比率
+		timeoutRate := t.timeoutCnt / t.totalCnt
+
+		// 有10次响应以上且超时比率>20% -> 认为服务商崩溃，需要更换服务
+		if t.totalCnt > 10 && float64(timeoutRate) > 0.2 {
+			go func() {
+				changeService(idx, t)
+			}()
+		}
+
+	case ratelimit.ErrLimited:
+		// 触发了限流
+		go func() {
+			changeService(idx, t)
+		}()
+	default:
 	}
-	return nil
+	return err
+}
+
+func changeService(idx int32, t *ResponseTimeoutFailoverSMSService) {
+	newIdx := (idx + 1) % int32(len(t.svcs))
+	if atomic.CompareAndSwapInt32(&t.idx, idx, newIdx) {
+		// 往后挪一位，将超时次数设为 0
+		atomic.StoreInt32(&t.timeoutCnt, 0)
+		atomic.StoreInt32(&t.totalCnt, 0)
+	}
+	// else 就是出现并发，别人换成功了;idx = newIdx
+	idx = atomic.LoadInt32(&t.idx)
 }

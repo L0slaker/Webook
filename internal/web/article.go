@@ -1,0 +1,232 @@
+package web
+
+import (
+	"Prove/webook/internal/domain"
+	"Prove/webook/internal/service"
+	ijwt "Prove/webook/internal/web/jwt"
+	"Prove/webook/pkg/ginx"
+	"Prove/webook/pkg/logger"
+	"fmt"
+	"github.com/ecodeclub/ekit/slice"
+	"github.com/gin-gonic/gin"
+	"net/http"
+	"strconv"
+	"time"
+)
+
+var _ handler = (*ArticleHandler)(nil)
+
+type ArticleHandler struct {
+	svc service.ArticleService
+	l   logger.LoggerV1
+}
+
+func NewArticleHandler(svc service.ArticleService, l logger.LoggerV1) *ArticleHandler {
+	return &ArticleHandler{
+		svc: svc,
+		l:   l,
+	}
+}
+
+func (a *ArticleHandler) Edit(ctx *gin.Context) {
+	var req ArticleReq
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+
+	// 登录校验,拿到author id
+	c := ctx.MustGet("claims")
+	claim, ok := c.(*ijwt.UserClaims)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, Result{
+			Code: 3,
+			Msg:  "未授权!",
+		})
+		a.l.Error("未发现用户的 session 信息！")
+		return
+	}
+	//校验
+
+	// 调用 svc 的代码
+	id, err := a.svc.Save(ctx, req.toDomain(claim.UserId))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, Result{
+			Code: 5,
+			Msg:  "系统错误！",
+		})
+		a.l.Error("保存帖子失败！", logger.Error(err))
+		return
+	}
+
+	// 返回响应
+	ctx.JSON(http.StatusOK, Result{
+		Msg:  "保存成功！",
+		Data: id,
+	})
+}
+
+func (a *ArticleHandler) Publish(ctx *gin.Context) {
+	var req ArticleReq
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+
+	// 登录校验,拿到author id
+	c := ctx.MustGet("claims")
+	claim, ok := c.(*ijwt.UserClaims)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, Result{
+			Code: 3,
+			Msg:  "未授权!",
+		})
+		a.l.Error("未发现用户的 session 信息！")
+		return
+	}
+
+	id, err := a.svc.Publish(ctx, req.toDomain(claim.UserId))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, Result{
+			Code: 5,
+			Msg:  "系统错误！",
+		})
+		a.l.Error("发表帖子失败！", logger.Error(err))
+		return
+	}
+
+	// 返回响应
+	ctx.JSON(http.StatusOK, Result{
+		Msg:  "发布成功！",
+		Data: id,
+	})
+}
+
+// Withdraw 将制作库和线上库的文章都设置为仅自己可见
+func (a *ArticleHandler) Withdraw(ctx *gin.Context) {
+	type Req struct {
+		Id int64
+	}
+
+	var req Req
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+	// 登录校验,拿到author id
+	c := ctx.MustGet("claims")
+	claim, ok := c.(*ijwt.UserClaims)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, Result{
+			Code: 3,
+			Msg:  "未授权!",
+		})
+		a.l.Error("未发现用户的 session 信息！")
+		return
+	}
+
+	err := a.svc.Withdraw(ctx, domain.Article{
+		Id: req.Id,
+		Author: domain.Author{
+			Id: claim.UserId,
+		},
+	})
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, Result{
+			Code: 5,
+			Msg:  "系统错误！",
+		})
+		a.l.Error("撤回帖子失败！", logger.Error(err))
+		return
+	}
+
+	// 返回响应
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "撤回帖子成功！",
+	})
+}
+
+func (a *ArticleHandler) List(ctx *gin.Context, req ListReq, uc ijwt.UserClaims) (ginx.Result, error) {
+	res, err := a.svc.List(ctx, uc.UserId, req.Offset, req.Limit)
+	if err != nil {
+		return Result{Code: 5, Msg: "系统错误！"}, fmt.Errorf("获取文章列表出错 %w！", err)
+	}
+	// 列表页不展示全文，而是显示一个摘要
+	// 简单摘要可以是文章的前几句话；强大的摘要是 AI 生成的
+	return ginx.Result{
+		Data: slice.Map[domain.Article, ArticleVO](res, func(idx int, src domain.Article) ArticleVO {
+			return ArticleVO{
+				Id:       src.Id,
+				Title:    src.Title,
+				Abstract: src.Abstract(),
+				// 列表请求不需要返回内容
+				//Content:    src.Content,
+				// 创作者自己的文章列表，也无需展示作者字段
+				//Author:     src.Author,
+				Status:     src.Status.ToUint8(),
+				CreateTime: src.CreateTime.Format(time.RFC1123),
+				UpdateTime: src.UpdateTime.Format(time.RFC1123),
+			}
+		}),
+	}, nil
+}
+
+func (a *ArticleHandler) Detail(ctx *gin.Context, uc ijwt.UserClaims) (ginx.Result, error) {
+	idStr := ctx.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 4)
+	if err != nil {
+		return ginx.Result{Code: 4, Msg: "参数错误！"}, fmt.Errorf("参数错误 %w！", err)
+	}
+	art, err := a.svc.GetById(ctx, id)
+	if err != nil {
+		return ginx.Result{Code: 5, Msg: "系统错误！"}, fmt.Errorf("查看文章详情失败 %w！", err)
+	}
+	// 判定
+	if art.Author.Id != uc.UserId {
+		return ginx.Result{Code: 4, Msg: "输入有误！"}, fmt.Errorf("非法访问文章，作者 ID 不匹配 %d！", uc.UserId)
+	}
+	return Result{
+		Data: ArticleVO{
+			Id:    art.Id,
+			Title: art.Title,
+			// 文章详情不用显示摘要
+			//Abstract:   art.Abstract(),
+			Content: art.Content,
+			// 创作者自己的文章列表，也无需展示作者字段
+			//Author:     art.Author,
+			Status:     art.Status.ToUint8(),
+			CreateTime: art.CreateTime.Format(time.RFC1123),
+			UpdateTime: art.UpdateTime.Format(time.RFC1123),
+		},
+	}, nil
+}
+
+func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
+	idStr := ctx.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 4)
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 4,
+			Msg:  "输入有误！",
+		})
+		a.l.Error("前端输入的 Id 不对", logger.Error(err))
+		return
+	}
+	art, err := a.svc.GetPublishedById(ctx, id)
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误！",
+		})
+		a.l.Error("获取文章信息失败！", logger.Error(err))
+		return
+	}
+	ctx.JSON(http.StatusOK, Result{
+		Data: ArticleVO{
+			Id:         art.Id,
+			Title:      art.Title,
+			Content:    art.Content,
+			Author:     art.Author.Name,
+			Status:     art.Status.ToUint8(),
+			CreateTime: art.CreateTime.Format(time.RFC1123),
+			UpdateTime: art.UpdateTime.Format(time.RFC1123),
+		},
+	})
+}

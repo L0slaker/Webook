@@ -19,11 +19,30 @@ services:
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
     ports:
-      - '6379:6379'
+      - "6379:6379"
 
   etcd:
     image: 'bitnami/etcd:latest'
     environment:
       - ALLOW_NONE_AUTHENTICATION=yes
     ports:
-      - 12379:2379
+      - "12379:2379"
+
+  mongo:
+    image: mongo:6.0
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    ports:
+      - "27017:27017"
+
+#  mongo-express:
+#    image: mongo-express:0.54
+#    restart: always
+#    environment:
+#      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+#      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+#      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
+#    ports:
+#      - "18081:8081"

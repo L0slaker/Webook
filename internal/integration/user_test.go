@@ -1,26 +1,56 @@
 package integration
 
 import (
+	"Prove/webook/internal/integration/startup"
 	"Prove/webook/internal/repository/dao"
 	"Prove/webook/internal/web"
+	ijwt "Prove/webook/internal/web/jwt"
 	"Prove/webook/ioc"
+	"Prove/webook/pkg/logger"
 	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 )
 
+// UserTestSuite 测试套件
+type UserTestSuite struct {
+	suite.Suite
+	server *gin.Engine
+	db     *gorm.DB
+}
+
+// SetupSuite 初始化测试内容
+func (u *UserTestSuite) SetupSuite() {
+	u.server = gin.Default()
+	u.server.Use(func(ctx *gin.Context) {
+		ctx.Set("claims", &ijwt.UserClaims{
+			UserId: 123,
+		})
+	})
+	u.db = startup.InitTestDB()
+
+}
+
 func TestUserHandler_e2e_SignUp(t *testing.T) {
-	server := InitWebServer()
-	db := ioc.InitDB()
+	server := startup.InitWebServer()
+	l, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+	db := ioc.InitDB(logger.NewZapLogger(l))
 	now := time.Now()
 	testCases := []struct {
 		name     string
@@ -194,8 +224,12 @@ func TestUserHandler_e2e_SignUp(t *testing.T) {
 }
 
 func TestUserHandler_e2e_LoginJWT(t *testing.T) {
-	server := InitWebServer()
-	db := ioc.InitDB()
+	server := startup.InitWebServer()
+	l, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+	db := ioc.InitDB(logger.NewZapLogger(l))
 	now := time.Now()
 	testCases := []struct {
 		name     string
@@ -324,7 +358,7 @@ func TestUserHandler_e2e_LoginJWT(t *testing.T) {
 }
 
 func TestUserHandler_e2e_SendLoginSMSCode(t *testing.T) {
-	server := InitWebServer()
+	server := startup.InitWebServer()
 	rdb := ioc.InitRedis()
 	testCases := []struct {
 		name string

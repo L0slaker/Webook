@@ -2,12 +2,15 @@ package ioc
 
 import (
 	"Prove/webook/internal/repository/dao"
+	"Prove/webook/pkg/logger"
 	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	glogger "gorm.io/gorm/logger"
+	"time"
 )
 
-func InitDB() *gorm.DB {
+func InitDB(l logger.LoggerV1) *gorm.DB {
 	type Config struct {
 		DSN string `yaml:"dsn"`
 	}
@@ -21,13 +24,31 @@ func InitDB() *gorm.DB {
 	}
 	//dsn := viper.GetString("db.dsn")
 	//db, err := gorm.Open(mysql.Open(config.Config.DB.DSN))
-	db, err := gorm.Open(mysql.Open(cfg.DSN))
+	db, err := gorm.Open(mysql.Open(cfg.DSN), &gorm.Config{
+		Logger: glogger.New(gormLoggerFunc(l.Debug), glogger.Config{
+			// 慢查询阈值，只有执行时间超过该阈值，才会使用（50ms，100ms）
+			// SQL 查询必然要求命中索引，最好就是走一次磁盘 IO，一次磁盘 IO 是不到 10ms
+			SlowThreshold: time.Millisecond * 10,
+			// 忽略记录未找到错误
+			IgnoreRecordNotFoundError: true,
+			// 确定数据库查询是否应该是参数化的,也就是用占位符代替了数据
+			ParameterizedQueries: true,
+			LogLevel:             glogger.Info,
+		}),
+	})
 	if err != nil {
 		panic(err)
 	}
+
 	err = dao.InitTables(db)
 	if err != nil {
 		panic(err)
 	}
 	return db
+}
+
+type gormLoggerFunc func(msg string, fields ...logger.Field)
+
+func (g gormLoggerFunc) Printf(msg string, args ...interface{}) {
+	g(msg, logger.Field{Key: "args", Value: args})
 }

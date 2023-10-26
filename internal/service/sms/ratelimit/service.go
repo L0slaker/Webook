@@ -11,7 +11,7 @@ import (
 
 const key = "sms:tencent"
 
-var errLimited = fmt.Errorf("触发了限流")
+var ErrLimited = fmt.Errorf("触发了限流")
 
 type RatelimitSMSService struct {
 	svc   sms.Service
@@ -35,7 +35,7 @@ func (s *RatelimitSMSService) Send(ctx context.Context, tplId string, args []str
 		return fmt.Errorf("短信服务判断是否限流出现问题：%w", err)
 	}
 	if limited {
-		return errLimited
+		return ErrLimited
 	}
 	err = s.svc.Send(ctx, tplId, args, numbers...)
 	// 可以在这里加一些新特性
