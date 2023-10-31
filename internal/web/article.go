@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/ecodeclub/ekit/slice"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/sync/errgroup"
 	"net/http"
 	"strconv"
 	"time"
@@ -17,14 +18,17 @@ import (
 var _ handler = (*ArticleHandler)(nil)
 
 type ArticleHandler struct {
-	svc service.ArticleService
-	l   logger.LoggerV1
+	svc      service.ArticleService
+	l        logger.LoggerV1
+	interSvc service.InteractiveService
+	biz      string
 }
 
 func NewArticleHandler(svc service.ArticleService, l logger.LoggerV1) *ArticleHandler {
 	return &ArticleHandler{
 		svc: svc,
 		l:   l,
+		biz: "article",
 	}
 }
 
@@ -209,24 +213,84 @@ func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
 		a.l.Error("前端输入的 Id 不对", logger.Error(err))
 		return
 	}
-	art, err := a.svc.GetPublishedById(ctx, id)
-	if err != nil {
+
+	var (
+		inter domain.Interactive
+		eg    errgroup.Group
+		art   domain.Article
+	)
+
+	// 读取文章
+	eg.Go(func() error {
+		art, err = a.svc.GetPublishedById(ctx, id)
+		return err
+	})
+
+	// 获取文章的计数
+	eg.Go(func() error {
+		uc := ctx.MustGet("users").(ijwt.UserClaims)
+		inter, err = a.interSvc.Get(ctx, a.biz, id, uc.UserId)
+		return err
+	})
+
+	if err = eg.Wait(); err != nil {
+		// 查询出错
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
 			Msg:  "系统错误！",
 		})
-		a.l.Error("获取文章信息失败！", logger.Error(err))
 		return
 	}
+
+	// 增加阅读计数，异步执行即可
+	go func() {
+		cntErr := a.interSvc.IncrReadCnt(ctx, a.biz, art.Id)
+		if cntErr != nil {
+			a.l.Error("增加阅读计数失败！", logger.Int64("author_id", art.Id), logger.Error(cntErr))
+		}
+	}()
+
 	ctx.JSON(http.StatusOK, Result{
 		Data: ArticleVO{
 			Id:         art.Id,
 			Title:      art.Title,
 			Content:    art.Content,
 			Author:     art.Author.Name,
+			ReadCnt:    inter.ReadCnt,
+			LikeCnt:    inter.LikeCnt,
+			CollectCnt: inter.CollectCnt,
+			Liked:      inter.Liked,
+			Collected:  inter.Collected,
 			Status:     art.Status.ToUint8(),
 			CreateTime: art.CreateTime.Format(time.RFC1123),
 			UpdateTime: art.UpdateTime.Format(time.RFC1123),
 		},
 	})
+}
+
+func (a *ArticleHandler) Like(ctx *gin.Context, req LikeReq, uc ijwt.UserClaims) (ginx.Result, error) {
+	var err error
+	if req.Like {
+		err = a.interSvc.Like(ctx, a.biz, req.Id, uc.UserId)
+	} else {
+		err = a.interSvc.CancelLike(ctx, a.biz, req.Id, uc.UserId)
+	}
+	if err != nil {
+		return ginx.Result{
+			Code: 5,
+			Msg:  "系统错误！",
+		}, err
+	}
+	return ginx.Result{Msg: "OK！"}, nil
+}
+
+func (a *ArticleHandler) Collect(ctx *gin.Context, req CollectReq, uc ijwt.UserClaims) (ginx.Result, error) {
+	err := a.interSvc.Collect(ctx, a.biz, req.Id, req.Cid, uc.UserId)
+	if err != nil {
+		return Result{
+			Code: 5,
+			Msg:  "系统错误！",
+		}, err
+	}
+	return Result{Msg: "OK"}, nil
 }

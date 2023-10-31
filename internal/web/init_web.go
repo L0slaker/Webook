@@ -15,7 +15,6 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	group.POST("/edit", u.EditJWT)
 	group.GET("/profile", u.ProfileJWT)
 	group.POST("/login_sms/send/code", u.SendLoginSMSCode)
-	//group.POST("/login_sms", u.LoginSMS)
 	group.POST("/login_sms",
 		ginx.WrapBody[LoginSMSReq](u.l.With(logger.String("method", "login_sms")), u.LoginSMS))
 	group.POST("/refresh_token", u.RefreshToken)
@@ -36,4 +35,9 @@ func (a *ArticleHandler) RegisterRoutes(server *gin.Engine) {
 
 	pub := group.Group("/pub")
 	pub.GET("/:id", a.PubDetail)
+	// 点赞和取消点赞通用的接口
+	pub.POST("/like",
+		ginx.WrapBodyAndToken[LikeReq, ijwt.UserClaims](a.Like))
+	pub.POST("/collect",
+		ginx.WrapBodyAndToken[CollectReq, ijwt.UserClaims](a.Collect))
 }

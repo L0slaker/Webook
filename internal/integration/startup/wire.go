@@ -23,11 +23,18 @@ var userSvcProvider = wire.NewSet(
 	dao.NewUserInfoDAO,
 	cache.NewUserCache,
 	repository.NewUserInfoRepository,
-	service.NewUserService)
+	service.NewUserService,
+)
 var articleSvcProvider = wire.NewSet(
 	article_dao.NewGORMArticleDAO,
 	article.NewArticleRepository,
 	service.NewArticleService,
+)
+var interactiveSvcProvider = wire.NewSet(
+	cache.NewRedisInteractiveCache,
+	dao.NewGORMInteractiveDAO,
+	repository.NewCachedInteractiveRepository,
+	service.NewInteractiveService,
 )
 
 func InitWebServer() *gin.Engine {
@@ -78,4 +85,9 @@ func InitAsyncSmsService(svc sms.Service) *async.SMSService {
 		async.NewSMSService,
 	)
 	return new(async.SMSService)
+}
+
+func InitInteractiveService() service.InteractiveService {
+	wire.Build(thirdProvider, interactiveSvcProvider)
+	return service.NewInteractiveService(nil, nil)
 }
