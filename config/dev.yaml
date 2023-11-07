@@ -4,4 +4,9 @@ db:
 redis:
   addr: "localhost:6379"
 
-abc: "xxxxxxxxxx"
+abc: "helloabc" # v1
+# abc: "helloabcdef" # v2
+
+kafka:
+  addrs:
+    - "localhost:9094"

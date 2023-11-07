@@ -11,6 +11,7 @@ var ErrRecordNotFound = gorm.ErrRecordNotFound
 
 type InteractiveDAO interface {
 	IncrReadCnt(ctx context.Context, biz string, bizId int64) error
+	BatchIncrReadCnt(ctx context.Context, bizs []string, ids []int64) error
 	InsertLikeInfo(ctx context.Context, biz string, bizId, uid int64) error
 	GetLikeInfo(ctx context.Context, biz string, bizId, uid int64) (UserLikeBiz, error)
 	DeleteLikeInfo(ctx context.Context, biz string, bizId, uid int64) error
@@ -59,6 +60,24 @@ func (dao *GORMInteractiveDAO) IncrReadCnt(ctx context.Context, biz string, bizI
 	//	Updates(map[string]any{
 	//		"read_cnt": cnt,
 	//	})
+}
+
+func (dao *GORMInteractiveDAO) BatchIncrReadCnt(ctx context.Context, bizs []string, ids []int64) error {
+	// 批量处理消息，要么都成功，要么都失败
+	// 为什么批量操作快：
+	// 我们只开启了一个事务，等到日志被刷新到磁盘上时，
+	// 可以一次性刷新到磁盘上，要比单次处理刷 N 次到磁盘上快
+	return dao.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txDAO := NewGORMInteractiveDAO(tx)
+		for i := range bizs {
+			err := txDAO.IncrReadCnt(ctx, bizs[i], ids[i])
+			if err != nil {
+				// 阅读计数多一个或少一个无关痛痒，或者 return err也OK
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (dao *GORMInteractiveDAO) InsertLikeInfo(ctx context.Context, biz string, bizId, uid int64) error {

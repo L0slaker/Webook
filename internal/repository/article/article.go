@@ -2,6 +2,7 @@ package article
 
 import (
 	"Prove/webook/internal/domain"
+	"Prove/webook/internal/events/article"
 	"Prove/webook/internal/repository"
 	"Prove/webook/internal/repository/cache"
 	dao "Prove/webook/internal/repository/dao/article"
@@ -34,7 +35,8 @@ type articleRepository struct {
 
 	// V2 尝试在repository层面上解决事务问题，
 	// 确保保存到制作库和线上库同时成功或同时失败
-	db *gorm.DB
+	db       *gorm.DB
+	producer article.KafkaProducer
 }
 
 func NewArticleRepository(dao dao.ArticleDAO, logger logger.LoggerV1) ArticleRepository {

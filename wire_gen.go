@@ -7,14 +7,16 @@
 package main
 
 import (
+	article3 "Prove/webook/internal/events/article"
 	"Prove/webook/internal/repository"
+	article2 "Prove/webook/internal/repository/article"
 	"Prove/webook/internal/repository/cache"
 	"Prove/webook/internal/repository/dao"
+	"Prove/webook/internal/repository/dao/article"
 	"Prove/webook/internal/service"
 	"Prove/webook/internal/web"
 	"Prove/webook/internal/web/jwt"
 	"Prove/webook/ioc"
-	"github.com/gin-gonic/gin"
 )
 
 import (
@@ -24,7 +26,7 @@ import (
 
 // Injectors from wire.go:
 
-func InitWebServer() *gin.Engine {
+func InitWebServer() *App {
 	cmdable := ioc.InitRedis()
 	loggerV1 := ioc.InitLogger()
 	handler := jwt.NewRedisJWT(cmdable)
@@ -34,14 +36,30 @@ func InitWebServer() *gin.Engine {
 	userCache := cache.NewUserCache(cmdable)
 	userRepository := repository.NewUserInfoRepository(userDAO, userCache)
 	userAndService := service.NewUserService(userRepository, loggerV1)
-	codeCache := ioc.InitCodeCache(cmdable)
+	codeCache := cache.NewRedisCodeCache(cmdable)
 	codeRepository := repository.NewCodeRepository(codeCache)
 	smsService := ioc.InitSMSService(cmdable)
 	codeAndService := service.NewCodeService(codeRepository, smsService)
-	userHandler := web.NewUserHandler(userAndService, codeAndService, handler)
+	userHandler := web.NewUserHandler(userAndService, codeAndService, handler, loggerV1)
 	wechatService := ioc.InitWechatService(loggerV1)
 	wechatHandlerConfig := ioc.InitWechatHandlerConfig()
 	oAuth2WechatHandler := web.NewOAuth2WechatHandler(wechatService, userAndService, wechatHandlerConfig, handler)
-	engine := ioc.InitEngine(v, userHandler, oAuth2WechatHandler)
-	return engine
+	articleDAO := article.NewGORMArticleDAO(db)
+	articleRepository := article2.NewArticleRepository(articleDAO, loggerV1)
+	client := ioc.InitKafka()
+	syncProducer := ioc.NewSyncProducer(client)
+	producer := article3.NewKafkaProducer(syncProducer)
+	articleService := service.NewArticleService(articleRepository, producer)
+	articleHandler := web.NewArticleHandler(articleService, loggerV1)
+	engine := ioc.InitEngine(v, userHandler, oAuth2WechatHandler, articleHandler)
+	interactiveCache := cache.NewRedisInteractiveCache(cmdable)
+	interactiveDAO := dao.NewGORMInteractiveDAO(db)
+	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveCache, interactiveDAO, loggerV1)
+	interactiveReadEventConsumer := article3.NewInteractiveReadEventBatchConsumer(client, loggerV1, interactiveRepository)
+	v2 := ioc.NewConsumers(interactiveReadEventConsumer)
+	app := &App{
+		server:    engine,
+		consumers: v2,
+	}
+	return app
 }

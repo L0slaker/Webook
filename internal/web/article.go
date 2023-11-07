@@ -219,16 +219,16 @@ func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
 		eg    errgroup.Group
 		art   domain.Article
 	)
+	uc := ctx.MustGet("users").(ijwt.UserClaims)
 
 	// 读取文章
 	eg.Go(func() error {
-		art, err = a.svc.GetPublishedById(ctx, id)
+		art, err = a.svc.GetPublishedById(ctx, id, uc.UserId)
 		return err
 	})
 
 	// 获取文章的计数
 	eg.Go(func() error {
-		uc := ctx.MustGet("users").(ijwt.UserClaims)
 		inter, err = a.interSvc.Get(ctx, a.biz, id, uc.UserId)
 		return err
 	})

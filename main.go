@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"github.com/fsnotify/fsnotify"
 	_ "github.com/gin-contrib/sessions/redis"
+	"github.com/gin-gonic/gin"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	_ "github.com/spf13/viper/remote"
 	"go.uber.org/zap"
+	"net/http"
 )
 
 func main() {
@@ -16,18 +18,26 @@ func main() {
 	//etcdctl --endpoints=127.0.0.1:12379 get /webook
 	//initViperV3Remote()
 	initViperV1()
-	//initLogger()
+	initLogger()
 
 	keys := viper.AllKeys()
 	settings := viper.AllSettings()
 	fmt.Println("all keys: ", keys)
 	fmt.Println("all settings: ", settings)
 
-	r := InitWebServer()
-	err := r.Run(":8080")
-	if err != nil {
-		panic("端口启动失败")
+	app := InitWebServer()
+	for _, c := range app.consumers {
+		err := c.Start()
+		if err != nil {
+			panic(err)
+		}
 	}
+
+	server := app.server
+	server.GET("/hello", func(ctx *gin.Context) {
+		ctx.String(http.StatusOK, "welcome!")
+	})
+	server.Run(":8080")
 }
 
 // 需要引入 	_ "github.com/spf13/viper/remote"
@@ -66,7 +76,7 @@ func initLogger() {
 func initViperV1() {
 	// 要在参数中指定 --config=config/dev.yaml
 	cfile := pflag.String("config",
-		"config/dev.yaml", "配置文件路径")
+		"webook/config/dev.yaml", "配置文件路径")
 	pflag.Parse()
 	// 直接指定文件路径
 	viper.SetConfigFile(*cfile)
@@ -78,6 +88,7 @@ func initViperV1() {
 		// 比较好的设计，会在 in 里面告诉你变更前和变更后的数据
 		// 更好的设计，会直接告诉你差异
 		fmt.Println(in.Name, in.Op)
+		fmt.Println(viper.GetString("db.dsn"))
 	})
 	err := viper.ReadInConfig()
 	if err != nil {
@@ -91,7 +102,7 @@ func initViperV2() {
 	// 读取的类型为 yaml
 	viper.SetConfigType("yaml")
 	// 在当前目录的 config 子目录下
-	viper.AddConfigPath("./config")
+	viper.AddConfigPath("webook/config")
 	err := viper.ReadInConfig()
 	if err != nil {
 		panic(err)
