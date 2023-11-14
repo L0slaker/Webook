@@ -50,8 +50,6 @@ func (s *service) VerifyCode(ctx context.Context, code string) (domain.WechatInf
 	const targetPattern = "https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code"
 	target := fmt.Sprintf(targetPattern, s.appId, s.appSecret, code)
 	// 获取一个 http 请求
-	//resp, err := http.Get(target)
-	//req,err := http.NewRequest(http.MethodGet,target,nil)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return domain.WechatInfo{}, err

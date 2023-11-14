@@ -1,6 +1,7 @@
 package web
 
 import (
+	"Prove/webook/internal/errs"
 	"Prove/webook/internal/service"
 	"Prove/webook/internal/service/oauth2/wechat"
 	ijwt "Prove/webook/internal/web/jwt"
@@ -25,7 +26,6 @@ type OAuth2WechatHandler struct {
 
 type WechatHandlerConfig struct {
 	Secure bool
-	//StateKey
 }
 
 func NewOAuth2WechatHandler(svc wechat.Service, userSvc service.UserAndService, cfg WechatHandlerConfig, jwtHandler ijwt.Handler) *OAuth2WechatHandler {
@@ -50,7 +50,7 @@ func (o *OAuth2WechatHandler) AuthURL(ctx *gin.Context) {
 	url, err := o.svc.AuthURL(ctx, state)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 4,
+			Code: errs.WechatLoginFailed,
 			Msg:  "构造扫码URL失败！",
 		})
 		return
@@ -59,7 +59,7 @@ func (o *OAuth2WechatHandler) AuthURL(ctx *gin.Context) {
 	// 设置 state
 	if err = o.setStateCookie(ctx, state); err != nil {
 		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 5,
+			Code: errs.WechatInternalServerError,
 			Msg:  "系统错误！",
 		})
 		return
@@ -77,7 +77,7 @@ func (o *OAuth2WechatHandler) Callback(ctx *gin.Context) {
 	err := o.verifyState(ctx)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 4,
+			Code: errs.WechatLoginFailed,
 			Msg:  "登陆失败！",
 		})
 		return
@@ -86,7 +86,7 @@ func (o *OAuth2WechatHandler) Callback(ctx *gin.Context) {
 	info, err := o.svc.VerifyCode(ctx, code)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 5,
+			Code: errs.WechatInternalServerError,
 			Msg:  "系统错误！",
 		})
 		return
@@ -95,7 +95,7 @@ func (o *OAuth2WechatHandler) Callback(ctx *gin.Context) {
 	u, err := o.userSvc.FindOrCreateByWechat(ctx, info)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 5,
+			Code: errs.WechatInternalServerError,
 			Msg:  "系统错误！",
 		})
 		return
@@ -104,15 +104,14 @@ func (o *OAuth2WechatHandler) Callback(ctx *gin.Context) {
 	// 设置登陆态
 	if err = o.SetLoginToken(ctx, u.Id); err != nil {
 		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 5,
+			Code: errs.WechatInternalServerError,
 			Msg:  "系统错误！",
 		})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, Result{
-		Code: 4,
-		Msg:  "微信登陆成功！",
+		Msg: "微信登陆成功！",
 	})
 }
 

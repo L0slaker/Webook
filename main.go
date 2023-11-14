@@ -1,16 +1,20 @@
 package main
 
 import (
+	"Prove/webook/ioc"
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/fsnotify/fsnotify"
 	_ "github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	_ "github.com/spf13/viper/remote"
 	"go.uber.org/zap"
 	"net/http"
+	"time"
 )
 
 func main() {
@@ -19,6 +23,8 @@ func main() {
 	//initViperV3Remote()
 	initViperV1()
 	initLogger()
+	initPrometheus()
+	closeFunc := ioc.InitOTEL()
 
 	keys := viper.AllKeys()
 	settings := viper.AllSettings()
@@ -38,6 +44,11 @@ func main() {
 		ctx.String(http.StatusOK, "welcome!")
 	})
 	server.Run(":8080")
+
+	// 一分钟内要关完，要退出
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	closeFunc(ctx)
 }
 
 // 需要引入 	_ "github.com/spf13/viper/remote"
@@ -70,6 +81,14 @@ func initLogger() {
 	}
 	// 将自定义的日志记录器（logger）替换为全局的默认日志记录器
 	zap.ReplaceGlobals(logger)
+}
+
+// initPrometheus
+func initPrometheus() {
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(":8081", nil)
+	}()
 }
 
 // initViperV1 加载配置
@@ -111,7 +130,7 @@ func initViperV2() {
 
 func initViperV3() {
 	// 直接指定文件路径
-	viper.SetConfigFile("config/dev.yaml")
+	viper.SetConfigFile("webook/config/dev.yaml")
 	err := viper.ReadInConfig()
 	if err != nil {
 		panic(err)

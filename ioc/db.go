@@ -2,11 +2,14 @@ package ioc
 
 import (
 	"Prove/webook/internal/repository/dao"
+	"Prove/webook/pkg/gormx"
 	"Prove/webook/pkg/logger"
 	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	glogger "gorm.io/gorm/logger"
+	"gorm.io/plugin/opentelemetry/tracing"
+	"gorm.io/plugin/prometheus"
 	"time"
 )
 
@@ -39,6 +42,33 @@ func InitDB(l logger.LoggerV1) *gorm.DB {
 	if err != nil {
 		panic(err)
 	}
+
+	err = db.Use(prometheus.New(prometheus.Config{
+		DBName: "webook",
+		// 每 15s 采集一次数据
+		RefreshInterval: 15,
+		// 监控数据库中正在运行的线程数
+		MetricsCollector: []prometheus.MetricsCollector{
+			&prometheus.MySQL{
+				VariableNames: []string{"Threads_running"},
+			},
+		},
+	}))
+	if err != nil {
+		panic(err)
+	}
+
+	// 监控查询的执行时间
+	cbs := gormx.NewCallbacks("geekbang_l0slakers",
+		"webook", "gorm_query_time",
+		"统计 GORM 的执行时间", map[string]string{"db": "webook"})
+	cbs.RegisterAll(db)
+
+	db.Use(tracing.NewPlugin(tracing.WithDBName("webook"),
+		tracing.WithQueryFormatter(func(query string) string {
+			l.Debug("", logger.String("query", query))
+			return query
+		})))
 
 	err = dao.InitTables(db)
 	if err != nil {

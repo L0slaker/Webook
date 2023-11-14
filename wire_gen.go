@@ -49,7 +49,7 @@ func InitWebServer() *App {
 	client := ioc.InitKafka()
 	syncProducer := ioc.NewSyncProducer(client)
 	producer := article3.NewKafkaProducer(syncProducer)
-	articleService := service.NewArticleService(articleRepository, producer)
+	articleService := service.NewArticleService(articleRepository, loggerV1, producer)
 	articleHandler := web.NewArticleHandler(articleService, loggerV1)
 	engine := ioc.InitEngine(v, userHandler, oAuth2WechatHandler, articleHandler)
 	interactiveCache := cache.NewRedisInteractiveCache(cmdable)

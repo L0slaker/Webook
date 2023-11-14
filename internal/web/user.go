@@ -2,6 +2,7 @@ package web
 
 import (
 	"Prove/webook/internal/domain"
+	"Prove/webook/internal/errs"
 	"Prove/webook/internal/repository/cache"
 	"Prove/webook/internal/service"
 	ijwt "Prove/webook/internal/web/jwt"
@@ -13,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"net/http"
 )
@@ -78,14 +80,14 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 	emailFlag, err := u.emailRegexExp.MatchString(info.Email)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
+			Code: errs.UserInternalServerError,
 			Msg:  "系统错误！",
 		})
 		return
 	}
 	if !emailFlag {
 		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 4,
+			Code: errs.UserInvalidInput,
 			Msg:  "邮箱不正确！",
 		})
 		return
@@ -94,7 +96,7 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 	//密码和确认密码
 	if info.Password != info.ConfirmPassword {
 		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 4,
+			Code: errs.UserInvalidInput,
 			Msg:  "两次密码不相同！",
 		})
 		return
@@ -103,14 +105,14 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 	pwdFlag, err := u.passwordRegexExp.MatchString(info.Password)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
+			Code: errs.UserInternalServerError,
 			Msg:  "系统错误！",
 		})
 		return
 	}
 	if !pwdFlag {
 		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 4,
+			Code: errs.UserInvalidInput,
 			Msg:  "密码格式不正确，必须包含字母、数字、特殊字符。且长度不能小于 8 位！",
 		})
 		return
@@ -122,22 +124,24 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 		Password: info.Password,
 	})
 	if err == service.ErrUserDuplicate {
+		span := trace.SpanFromContext(ctx.Request.Context())
+		span.AddEvent("邮件冲突")
+		defer span.End()
 		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 4,
+			Code: errs.UserDuplicateEmail,
 			Msg:  "重复邮箱，请更换邮箱！",
 		})
 		return
 	}
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
+			Code: errs.UserInternalServerError,
 			Msg:  "系统错误！",
 		})
 		return
 	}
 	ctx.JSON(http.StatusOK, Result{
-		Code: 4,
-		Msg:  "注册成功！",
+		Msg: "注册成功！",
 	})
 }
 
@@ -196,33 +200,26 @@ type LoginReq struct {
 func (u *UserHandler) LoginJWT(ctx *gin.Context, req LoginReq) (Result, error) {
 	user, err := u.svc.Login(ctx, req.Email, req.Password)
 	if err == service.ErrInvalidUserOrPassword {
-		//ctx.JSON(http.StatusBadRequest, Result{
-		//	Code: 4,
-		//	Msg:  "邮箱或密码不正确，请重试！",
-		//})
-		return Result{Code: 4, Msg: "邮箱或密码不正确，请重试！"}, fmt.Errorf("邮箱或密码不正确 %w！", err)
+		return Result{
+			Code: errs.UserInvalidOrPassword,
+			Msg:  "邮箱或密码不正确，请重试！",
+		}, fmt.Errorf("邮箱或密码不正确 %w！", err)
 	}
 	if err != nil {
-		//ctx.JSON(http.StatusInternalServerError, Result{
-		//	Code: 5,
-		//	Msg:  "系统错误！",
-		//})
-		return Result{Code: 5, Msg: "系统错误！"}, nil
+		return Result{
+			Code: errs.UserInternalServerError,
+			Msg:  "系统错误！",
+		}, nil
 	}
 
 	// 生成JWT Token
 	if err = u.SetLoginToken(ctx, user.Id); err != nil {
-		//ctx.JSON(http.StatusInternalServerError, Result{
-		//	Code: 5,
-		//	Msg:  "系统错误！",
-		//})
-		return Result{Code: 5, Msg: "系统错误！"}, fmt.Errorf("生成 JWT Token 出错 %w", err)
+		return Result{
+			Code: errs.UserInternalServerError,
+			Msg:  "系统错误！",
+		}, fmt.Errorf("生成 JWT Token 出错 %w", err)
 	}
 
-	//ctx.JSON(http.StatusOK, Result{
-	//	Code: 4,
-	//	Msg:  "登陆成功！",
-	//})
 	return Result{Msg: "登陆成功！"}, nil
 }
 
@@ -239,14 +236,14 @@ func (u *UserHandler) SendLoginSMSCode(ctx *gin.Context) {
 	phoneFlag, err := u.telephoneRegexPattern.MatchString(req.Phone)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
+			Code: errs.CodeSendInternalServerError,
 			Msg:  "系统错误！",
 		})
 		return
 	}
 	if !phoneFlag {
 		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 4,
+			Code: errs.CodeInvalidInput,
 			Msg:  "手机号码不正确！",
 		})
 		return
@@ -256,20 +253,18 @@ func (u *UserHandler) SendLoginSMSCode(ctx *gin.Context) {
 	switch err {
 	case nil:
 		ctx.JSON(http.StatusOK, Result{
-			Code: 4,
-			Msg:  "发送成功！",
+			Msg: "发送成功！",
 		})
 	case service.ErrCodeSendTooMany:
 		// 发送太频繁，需要注意是否有人蓄意破坏
 		zap.L().Warn("短信发送太频繁！", zap.Error(err))
 		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 4,
+			Code: errs.CodeSendTooMany,
 			Msg:  "发送太频繁，请稍后再试！",
 		})
 	default:
 		ctx.JSON(http.StatusInternalServerError, Result{
-			// 错误码系统
-			Code: 5,
+			Code: errs.CodeSendInternalServerError,
 			Msg:  "系统错误！",
 		})
 	}
@@ -284,52 +279,41 @@ type LoginSMSReq struct {
 func (u *UserHandler) LoginSMS(ctx *gin.Context, req LoginSMSReq) (ginx.Result, error) {
 	ok, err := u.codeSvc.Verify(ctx, biz, req.Phone, req.Code)
 	if err == cache.ErrCodeSendTooMany {
-		//ctx.JSON(http.StatusBadRequest, Result{
-		//	Code: 4,
-		//	Msg:  "验证次数过多！",
-		//})
-		return Result{Code: 4, Msg: "验证次数过多！"}, fmt.Errorf("验证次数过多 %w！", err)
+		return Result{
+			Code: errs.CodeVerifyTooMany,
+			Msg:  "验证次数过多！",
+		}, fmt.Errorf("验证次数过多 %w！", err)
 	}
 	if err != nil {
-		//ctx.JSON(http.StatusInternalServerError, Result{
-		//	Code: 5,
-		//	Msg:  "系统错误！",
-		//})
-		//zap.L().Error("校验验证码出错！", zap.Error(err))
-		// 小心敏感信息的问题，如果线上开了DEBUG级别，需要删除此段
-		//zap.L().Debug("", zap.String("手机号码", req.Phone))
-		return Result{Code: 5, Msg: "系统错误！"}, fmt.Errorf("校验验证码出错 %w！", err)
+		return Result{
+			Code: errs.CodeVerifyInternalServerError,
+			Msg:  "系统错误！",
+		}, fmt.Errorf("校验验证码出错 %w！", err)
 	}
 	if !ok {
-		//ctx.JSON(http.StatusBadRequest, Result{
-		//	Code: 4,
-		//	Msg:  "验证码有误！",
-		//})
-		return Result{Code: 4, Msg: "验证码有误！"}, nil
+		return Result{
+			Code: errs.CodeVerifyError,
+			Msg:  "验证码有误！",
+		}, nil
 	}
 
 	// 输入的手机号有可能是新用户
 	user, err := u.svc.FindOrCreate(ctx, req.Phone)
 	if err != nil {
-		//ctx.JSON(http.StatusInternalServerError, Result{
-		//	Code: 5,
-		//	Msg:  "系统错误！",
-		//})
-		return Result{Code: 5, Msg: "系统错误！"}, fmt.Errorf("登陆或注册用户失败 %w！", err)
+		return Result{
+			Code: errs.CodeVerifyInternalServerError,
+			Msg:  "系统错误！",
+		}, fmt.Errorf("登陆或注册用户失败 %w！", err)
 	}
 
 	// 生成JWT Token
 	if err = u.SetLoginToken(ctx, user.Id); err != nil {
-		//ctx.JSON(http.StatusInternalServerError, Result{
-		//	Code: 5,
-		//	Msg:  "系统错误！",
-		//})
-		return Result{Code: 5, Msg: "系统错误！"}, fmt.Errorf("生成 JWT Token 失败 %w！", err)
+		return Result{
+			Code: errs.CodeVerifyInternalServerError,
+			Msg:  "系统错误！",
+		}, fmt.Errorf("生成 JWT Token 失败 %w！", err)
 	}
 
-	//ctx.JSON(http.StatusOK, Result{
-	//	Msg:  "验证通过！",
-	//})
 	return Result{Msg: "验证通过！"}, nil
 }
 
@@ -413,14 +397,14 @@ func (u *UserHandler) EditJWT(ctx *gin.Context) {
 	birthdayFlag, err := u.birthdayRegexPattern.MatchString(info.Birthday)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
+			Code: errs.UserInternalServerError,
 			Msg:  "系统错误！",
 		})
 		return
 	}
 	if !birthdayFlag {
 		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 4,
+			Code: errs.UserInvalidInput,
 			Msg:  "生日格式不正确，请以`1992-01-01`这种格式输入！",
 		})
 		return
@@ -429,14 +413,14 @@ func (u *UserHandler) EditJWT(ctx *gin.Context) {
 	nicknameFlag, err := u.nicknameRegex.MatchString(info.Nickname)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
+			Code: errs.UserInternalServerError,
 			Msg:  "系统错误！",
 		})
 		return
 	}
 	if !nicknameFlag {
 		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 4,
+			Code: errs.UserInvalidInput,
 			Msg:  "昵称格式不正确，请输入2-20范围内的字符！",
 		})
 		return
@@ -448,7 +432,7 @@ func (u *UserHandler) EditJWT(ctx *gin.Context) {
 	claims, ok := c.(*ijwt.UserClaims)
 	if !ok {
 		ctx.JSON(http.StatusUnauthorized, Result{
-			Code: 3,
+			Code: errs.UserUnauthorizedError,
 			Msg:  "未授权!",
 		})
 		return
@@ -460,15 +444,14 @@ func (u *UserHandler) EditJWT(ctx *gin.Context) {
 		Nickname: info.Nickname,
 	}); err != nil {
 		ctx.JSON(http.StatusBadRequest, Result{
-			Code: 4,
+			Code: errs.UserInvalidInput,
 			Msg:  "更新信息失败，请检查格式！",
 		})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, Result{
-		Code: 4,
-		Msg:  "更新个人信息成功！",
+		Msg: "更新个人信息成功！",
 	})
 }
 
@@ -502,7 +485,7 @@ func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
 	claims, ok := c.(*ijwt.UserClaims)
 	if !ok {
 		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
+			Code: errs.UserInternalServerError,
 			Msg:  "系统错误",
 		})
 		return
@@ -511,7 +494,7 @@ func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
 	user, err := u.svc.Profile(ctx, claims.UserId)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
+			Code: errs.UserInternalServerError,
 			Msg:  "系统错误",
 		})
 		return

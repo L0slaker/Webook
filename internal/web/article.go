@@ -2,6 +2,7 @@ package web
 
 import (
 	"Prove/webook/internal/domain"
+	"Prove/webook/internal/errs"
 	"Prove/webook/internal/service"
 	ijwt "Prove/webook/internal/web/jwt"
 	"Prove/webook/pkg/ginx"
@@ -43,7 +44,7 @@ func (a *ArticleHandler) Edit(ctx *gin.Context) {
 	claim, ok := c.(*ijwt.UserClaims)
 	if !ok {
 		ctx.JSON(http.StatusUnauthorized, Result{
-			Code: 3,
+			Code: errs.UserUnauthorizedError,
 			Msg:  "未授权!",
 		})
 		a.l.Error("未发现用户的 session 信息！")
@@ -55,7 +56,7 @@ func (a *ArticleHandler) Edit(ctx *gin.Context) {
 	id, err := a.svc.Save(ctx, req.toDomain(claim.UserId))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
+			Code: errs.ArticleInternalServerError,
 			Msg:  "系统错误！",
 		})
 		a.l.Error("保存帖子失败！", logger.Error(err))
@@ -80,7 +81,7 @@ func (a *ArticleHandler) Publish(ctx *gin.Context) {
 	claim, ok := c.(*ijwt.UserClaims)
 	if !ok {
 		ctx.JSON(http.StatusUnauthorized, Result{
-			Code: 3,
+			Code: errs.UserUnauthorizedError,
 			Msg:  "未授权!",
 		})
 		a.l.Error("未发现用户的 session 信息！")
@@ -90,7 +91,7 @@ func (a *ArticleHandler) Publish(ctx *gin.Context) {
 	id, err := a.svc.Publish(ctx, req.toDomain(claim.UserId))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
+			Code: errs.ArticleInternalServerError,
 			Msg:  "系统错误！",
 		})
 		a.l.Error("发表帖子失败！", logger.Error(err))
@@ -119,7 +120,7 @@ func (a *ArticleHandler) Withdraw(ctx *gin.Context) {
 	claim, ok := c.(*ijwt.UserClaims)
 	if !ok {
 		ctx.JSON(http.StatusUnauthorized, Result{
-			Code: 3,
+			Code: errs.UserUnauthorizedError,
 			Msg:  "未授权!",
 		})
 		a.l.Error("未发现用户的 session 信息！")
@@ -134,7 +135,7 @@ func (a *ArticleHandler) Withdraw(ctx *gin.Context) {
 	})
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
-			Code: 5,
+			Code: errs.ArticleInternalServerError,
 			Msg:  "系统错误！",
 		})
 		a.l.Error("撤回帖子失败！", logger.Error(err))
@@ -150,7 +151,10 @@ func (a *ArticleHandler) Withdraw(ctx *gin.Context) {
 func (a *ArticleHandler) List(ctx *gin.Context, req ListReq, uc ijwt.UserClaims) (ginx.Result, error) {
 	res, err := a.svc.List(ctx, uc.UserId, req.Offset, req.Limit)
 	if err != nil {
-		return Result{Code: 5, Msg: "系统错误！"}, fmt.Errorf("获取文章列表出错 %w！", err)
+		return Result{
+			Code: errs.ArticleInternalServerError,
+			Msg:  "系统错误！",
+		}, fmt.Errorf("获取文章列表出错 %w！", err)
 	}
 	// 列表页不展示全文，而是显示一个摘要
 	// 简单摘要可以是文章的前几句话；强大的摘要是 AI 生成的
@@ -176,15 +180,24 @@ func (a *ArticleHandler) Detail(ctx *gin.Context, uc ijwt.UserClaims) (ginx.Resu
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 4)
 	if err != nil {
-		return ginx.Result{Code: 4, Msg: "参数错误！"}, fmt.Errorf("参数错误 %w！", err)
+		return ginx.Result{
+			Code: errs.ArticleInvalidInput,
+			Msg:  "参数错误！",
+		}, fmt.Errorf("参数错误 %w！", err)
 	}
 	art, err := a.svc.GetById(ctx, id)
 	if err != nil {
-		return ginx.Result{Code: 5, Msg: "系统错误！"}, fmt.Errorf("查看文章详情失败 %w！", err)
+		return ginx.Result{
+			Code: errs.ArticleInternalServerError,
+			Msg:  "系统错误！",
+		}, fmt.Errorf("查看文章详情失败 %w！", err)
 	}
 	// 判定
 	if art.Author.Id != uc.UserId {
-		return ginx.Result{Code: 4, Msg: "输入有误！"}, fmt.Errorf("非法访问文章，作者 ID 不匹配 %d！", uc.UserId)
+		return ginx.Result{
+			Code: errs.ArticleInvalidInput,
+			Msg:  "输入有误！",
+		}, fmt.Errorf("非法访问文章，作者 ID 不匹配 %d！", uc.UserId)
 	}
 	return Result{
 		Data: ArticleVO{
@@ -207,7 +220,7 @@ func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
 	id, err := strconv.ParseInt(idStr, 10, 4)
 	if err != nil {
 		ctx.JSON(http.StatusOK, Result{
-			Code: 4,
+			Code: errs.ArticleInvalidInput,
 			Msg:  "输入有误！",
 		})
 		a.l.Error("前端输入的 Id 不对", logger.Error(err))
@@ -236,7 +249,7 @@ func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
 	if err = eg.Wait(); err != nil {
 		// 查询出错
 		ctx.JSON(http.StatusOK, Result{
-			Code: 5,
+			Code: errs.ArticleInternalServerError,
 			Msg:  "系统错误！",
 		})
 		return
@@ -277,7 +290,7 @@ func (a *ArticleHandler) Like(ctx *gin.Context, req LikeReq, uc ijwt.UserClaims)
 	}
 	if err != nil {
 		return ginx.Result{
-			Code: 5,
+			Code: errs.ArticleInternalServerError,
 			Msg:  "系统错误！",
 		}, err
 	}
@@ -288,7 +301,7 @@ func (a *ArticleHandler) Collect(ctx *gin.Context, req CollectReq, uc ijwt.UserC
 	err := a.interSvc.Collect(ctx, a.biz, req.Id, req.Cid, uc.UserId)
 	if err != nil {
 		return Result{
-			Code: 5,
+			Code: errs.ArticleInternalServerError,
 			Msg:  "系统错误！",
 		}, err
 	}

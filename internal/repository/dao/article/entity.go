@@ -31,3 +31,27 @@ type PublishedArticleV1 struct {
 	UpdateTime int64  `bson:"update_time,omitempty"`
 	Status     uint8  `bson:"status,omitempty"`
 }
+
+//func (u *model) BeforeCreate(tx *gorm.DB) error {
+//	startTime := time.Now()
+//	// 将带有键的存储值设置到当前数据库实例的上下文中
+//	tx.Set("start_time", startTime)
+//	log := slog.Make(sloghuman.Sink(os.Stdout))
+//	log.Info(context.Background(), "这是 BeforeCreate 钩子函数")
+//	return nil
+//}
+//
+//func (u *model) AfterCreate(tx *gorm.DB) error {
+//	val, _ := tx.Get("start_time")
+//	startTime, ok := val.(time.Time)
+//	if !ok {
+//		return nil
+//	}
+//	// 执行时间
+//	duration := time.Since(startTime)
+//	log := slog.Make(sloghuman.Sink(os.Stdout))
+//	log.Info(context.Background(), "这是 AfterCreate 钩子函数")
+//	return nil
+//}
+//
+//type model struct{}

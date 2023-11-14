@@ -59,17 +59,6 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
-		//// 刷新 token / 10s
-		//if claims.ExpiresAt.Sub(time.Now()) < 50 {
-		//	// 检查过期
-		//	claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute))
-		//	tokenString, err = token.SignedString([]byte("OAFXibGNCqeU49DiXzCADjs9up9d7bJz"))
-		//	if err != nil {
-		//		// 记录日志
-		//		log.Println("续约失败", err)
-		//	}
-		//	ctx.Header("x-jwt-token", tokenString)
-		//}
 
 		// 为其它功能提供claims
 		ctx.Set("claims", claims)

@@ -4,11 +4,22 @@ import (
 	"Prove/webook/pkg/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/prometheus/client_golang/prometheus"
 	"net/http"
+	"strconv"
 )
 
-// L 使用包变量
-var L logger.LoggerV1
+var (
+	L      logger.LoggerV1
+	vector *prometheus.CounterVec
+)
+
+// InitCounter 统一记录错误码
+func InitCounter(opt prometheus.CounterOpts) {
+	// 这里可以记录 code、method、命中路由、HTTP 状态码
+	vector = prometheus.NewCounterVec(opt, []string{"code"})
+	prometheus.MustRegister(vector)
+}
 
 func WrapBody[T any](l logger.LoggerV1, fn func(ctx *gin.Context, req T) (Result, error)) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
@@ -25,6 +36,7 @@ func WrapBody[T any](l logger.LoggerV1, fn func(ctx *gin.Context, req T) (Result
 				logger.String("route", ctx.FullPath()),
 				logger.Error(err))
 		}
+		vector.WithLabelValues(strconv.Itoa(res.Code)).Inc()
 		ctx.JSON(http.StatusOK, res)
 	}
 }
@@ -48,6 +60,7 @@ func WrapBodyV1[T any](fn func(ctx *gin.Context, req T) (Result, error)) gin.Han
 				logger.String("route", ctx.FullPath()),
 				logger.Error(err))
 		}
+		vector.WithLabelValues(strconv.Itoa(res.Code)).Inc()
 		ctx.JSON(http.StatusOK, res)
 	}
 }
@@ -78,6 +91,7 @@ func WrapBodyAndToken[Req any, C jwt.Claims](fn func(ctx *gin.Context, req Req, 
 				logger.String("route", ctx.FullPath()),
 				logger.Error(err))
 		}
+		vector.WithLabelValues(strconv.Itoa(res.Code)).Inc()
 		ctx.JSON(http.StatusOK, res)
 	}
 }
@@ -109,6 +123,7 @@ func WrapToken[C jwt.Claims](fn func(ctx *gin.Context, uc C) (Result, error)) gi
 				logger.String("route", ctx.FullPath()),
 				logger.Error(err))
 		}
+		vector.WithLabelValues(strconv.Itoa(res.Code)).Inc()
 		ctx.JSON(http.StatusOK, res)
 		// 再执行一些东西
 	}
