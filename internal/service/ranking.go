@@ -23,11 +23,6 @@ type BatchRankingService struct {
 	batchSize int // 批量大小
 	n         int //排行榜数量
 	scoreFunc func(t time.Time, likeCnt int64) float64
-	// 在微服务下无法操作 repository
-	// 一般 repository 在另一个代码仓库，例如user在A仓库，article在B仓库
-	// 二者之间只有 gRPC 接口，哪来的repository？
-	//artRepo  article.ArticleRepository
-	//interRepo     repository.InteractiveRepository
 }
 
 func NewBatchRankingService(artSvc ArticleService, interSvc InteractiveService) RankingService {
