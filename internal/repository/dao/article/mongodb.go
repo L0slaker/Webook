@@ -150,3 +150,8 @@ func InitCollections(db *mongo.Database) error {
 	_, err = db.Collection("published_articles").Indexes().CreateMany(ctx, index)
 	return err
 }
+
+func (m *MongoDBDAO) ListPub(ctx context.Context, start time.Time, offset int, limit int) ([]Article, error) {
+	//TODO implement me
+	panic("implement me")
+}

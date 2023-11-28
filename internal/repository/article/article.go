@@ -21,6 +21,7 @@ type ArticleRepository interface {
 	List(ctx context.Context, uid int64, offset int, limit int) ([]domain.Article, error)
 	GetById(ctx context.Context, id int64) (domain.Article, error)
 	GetPublishedById(ctx context.Context, id int64) (domain.Article, error)
+	ListPub(ctx context.Context, start time.Time, offset int, limit int) ([]domain.Article, error)
 }
 
 type articleRepository struct {
@@ -115,6 +116,16 @@ func (a *articleRepository) List(ctx context.Context, uid int64, offset int, lim
 		a.preCache(ctx, data)
 	}()
 	return data, err
+}
+
+func (a *articleRepository) ListPub(ctx context.Context, start time.Time, offset int, limit int) ([]domain.Article, error) {
+	res, err := a.dao.ListPub(ctx, start, offset, limit)
+	if err != nil {
+		return nil, err
+	}
+	return slice.Map(res, func(idx int, src dao.Article) domain.Article {
+		return a.toDomain(src)
+	}), nil
 }
 
 func (a *articleRepository) GetById(ctx context.Context, id int64) (domain.Article, error) {

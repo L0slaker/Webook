@@ -17,6 +17,7 @@ import (
 	"Prove/webook/internal/web"
 	"Prove/webook/internal/web/jwt"
 	"Prove/webook/ioc"
+	"github.com/google/wire"
 )
 
 import (
@@ -57,9 +58,36 @@ func InitWebServer() *App {
 	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveCache, interactiveDAO, loggerV1)
 	interactiveReadEventConsumer := article3.NewInteractiveReadEventBatchConsumer(client, loggerV1, interactiveRepository)
 	v2 := ioc.NewConsumers(interactiveReadEventConsumer)
+	interactiveService := service.NewInteractiveService(interactiveRepository, loggerV1)
+	rankingService := service.NewBatchRankingService(articleService, interactiveService)
+	rankingJob := ioc.InitRankingJob(rankingService)
+	cron := ioc.InitJobs(loggerV1, rankingJob)
 	app := &App{
 		server:    engine,
 		consumers: v2,
+		cron:      cron,
 	}
 	return app
 }
+
+// wire.go:
+
+var (
+	// 第三方依赖
+	thirdProvider = wire.NewSet(ioc.InitDB, ioc.InitRedis, ioc.InitLogger, ioc.InitKafka)
+
+	// 用户模块
+	userProvider = wire.NewSet(dao.NewUserInfoDAO, cache.NewUserCache, repository.NewUserInfoRepository, service.NewUserService)
+
+	// 验证码模块
+	codeProvider = wire.NewSet(cache.NewRedisCodeCache, repository.NewCodeRepository, service.NewCodeService)
+
+	// 文章模块
+	articleProvider = wire.NewSet(article.NewGORMArticleDAO, article2.NewArticleRepository, service.NewArticleService)
+
+	// 阅读计数模块
+	interProvider = wire.NewSet(dao.NewGORMInteractiveDAO, cache.NewRedisInteractiveCache, repository.NewCachedInteractiveRepository, service.NewInteractiveService)
+
+	// 排行榜模块
+	rankingProvider = wire.NewSet(cache.NewRankingRedisCache, repository.NewCachedRankingRepository, service.NewBatchRankingService)
+)

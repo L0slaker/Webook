@@ -16,40 +16,73 @@ import (
 	"github.com/google/wire"
 )
 
+var (
+	// 第三方依赖
+	thirdProvider = wire.NewSet(
+		ioc.InitDB, ioc.InitRedis,
+		ioc.InitLogger, ioc.InitKafka,
+	)
+
+	// 用户模块
+	userProvider = wire.NewSet(
+		dao.NewUserInfoDAO, cache.NewUserCache,
+		repository.NewUserInfoRepository,
+		service.NewUserService,
+	)
+
+	// 验证码模块
+	codeProvider = wire.NewSet(
+		cache.NewRedisCodeCache,
+		repository.NewCodeRepository,
+		service.NewCodeService,
+	)
+
+	// 文章模块
+	articleProvider = wire.NewSet(
+		artDAO.NewGORMArticleDAO,
+		artRepo.NewArticleRepository,
+		service.NewArticleService,
+	)
+
+	// 阅读计数模块
+	interProvider = wire.NewSet(
+		dao.NewGORMInteractiveDAO,
+		cache.NewRedisInteractiveCache,
+		repository.NewCachedInteractiveRepository,
+		service.NewInteractiveService,
+	)
+
+	// 排行榜模块
+	rankingProvider = wire.NewSet(
+		cache.NewRankingRedisCache,
+		repository.NewCachedRankingRepository,
+		service.NewBatchRankingService,
+	)
+)
+
 func InitWebServer() *App {
 	wire.Build(
-		// 初始化第三方依赖
-		ioc.InitDB, ioc.InitRedis, ioc.InitLogger,
-		ioc.InitKafka, ioc.NewConsumers, ioc.NewSyncProducer,
+		thirdProvider,
+		userProvider,
+		codeProvider,
+		articleProvider,
+		interProvider,
+		rankingProvider,
 
-		// producer & consumer
-		//article.NewInteractiveReadEventConsumer,
+		ioc.NewConsumers, ioc.NewSyncProducer,
 		// 批量处理
 		article.NewInteractiveReadEventBatchConsumer,
 		article.NewKafkaProducer,
 
-		// 初始化 dao
-		dao.NewUserInfoDAO, artDAO.NewGORMArticleDAO, dao.NewGORMInteractiveDAO,
-		cache.NewRedisInteractiveCache, cache.NewUserCache, cache.NewRedisCodeCache,
-
-		// 初始化 repo
-		repository.NewUserInfoRepository, repository.NewCodeRepository,
-		repository.NewCachedInteractiveRepository, artRepo.NewArticleRepository,
-
-		// 初始化 svc
-		service.NewUserService, service.NewCodeService, service.NewArticleService,
-		// 基于内存实现
 		ioc.InitSMSService, ioc.InitWechatService,
+		ioc.InitRankingJob, ioc.InitJobs,
 
 		// 初始化 handler
 		web.NewUserHandler, web.NewArticleHandler,
 		web.NewOAuth2WechatHandler, ijwt.NewRedisJWT,
 		ioc.InitWechatHandlerConfig,
 
-		// 初始化 Middleware
-		ioc.InitMiddlewares,
-		// 初始化 Engine
-		ioc.InitEngine,
+		ioc.InitMiddlewares, ioc.InitEngine,
 
 		wire.Struct(new(App), "*"),
 	)

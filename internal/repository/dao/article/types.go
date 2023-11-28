@@ -1,6 +1,9 @@
 package article
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type ArticleDAO interface {
 	Insert(ctx context.Context, art Article) (int64, error)
@@ -10,4 +13,5 @@ type ArticleDAO interface {
 	GetPubById(ctx context.Context, id int64) (PublishedArticle, error)
 	Sync(ctx context.Context, art Article) (int64, error)
 	SyncStatus(ctx context.Context, art Article) error
+	ListPub(ctx context.Context, start time.Time, offset int, limit int) ([]Article, error)
 }

@@ -17,7 +17,6 @@ type Article struct {
 	CreateTime int64 `bson:"create_time,omitempty"`
 	UpdateTime int64 `bson:"update_time,omitempty"`
 	Status     uint8 `bson:"status,omitempty"`
-	//DeleteTime int64
 }
 
 // PublishedArticle 线上表

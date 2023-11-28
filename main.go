@@ -39,6 +39,8 @@ func main() {
 		}
 	}
 
+	app.cron.Start()
+
 	server := app.server
 	server.GET("/hello", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "welcome!")
@@ -49,6 +51,8 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	closeFunc(ctx)
+	ctx = app.cron.Stop()
+	<-ctx.Done()
 }
 
 // 需要引入 	_ "github.com/spf13/viper/remote"

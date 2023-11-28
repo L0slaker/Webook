@@ -18,6 +18,7 @@ type InteractiveService interface {
 	// Collect 收藏
 	Collect(ctx context.Context, biz string, bizId, uid, cid int64) error
 	Get(ctx context.Context, biz string, bizId, uid int64) (domain.Interactive, error)
+	GetByIds(ctx context.Context, biz string, bizIds []int64) (map[int64]domain.Interactive, error)
 }
 
 type interactiveService struct {
@@ -77,4 +78,9 @@ func (i *interactiveService) Get(ctx context.Context, biz string, bizId, uid int
 	inter.Liked = liked
 	inter.Collected = collected
 	return inter, err
+}
+
+func (i *interactiveService) GetByIds(ctx context.Context, biz string, bizIds []int64) (map[int64]domain.Interactive, error) {
+	//TODO implement me
+	panic("implement me")
 }

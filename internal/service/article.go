@@ -15,6 +15,8 @@ type ArticleService interface {
 	Publish(ctx context.Context, article domain.Article) (int64, error)
 	PublishV1(ctx context.Context, article domain.Article) (int64, error)
 	List(ctx context.Context, uid int64, offset int, limit int) ([]domain.Article, error)
+	// ListPub 只取七天内的热榜数据
+	ListPub(ctx context.Context, start time.Time, offset, limit int) ([]domain.Article, error)
 	GetById(ctx context.Context, id int64) (domain.Article, error)
 	GetPublishedById(ctx context.Context, id, uid int64) (domain.Article, error)
 }
@@ -111,6 +113,10 @@ func (a *articleService) Publish(ctx context.Context, article domain.Article) (i
 
 func (a *articleService) List(ctx context.Context, uid int64, offset int, limit int) ([]domain.Article, error) {
 	return a.repo.List(ctx, uid, offset, limit)
+}
+
+func (a *articleService) ListPub(ctx context.Context, start time.Time, offset, limit int) ([]domain.Article, error) {
+	return a.repo.ListPub(ctx, start, offset, limit)
 }
 
 func (a *articleService) GetById(ctx context.Context, id int64) (domain.Article, error) {

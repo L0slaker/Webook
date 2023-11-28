@@ -161,3 +161,11 @@ func (dao *GORMArticleDAO) SyncStatus(ctx context.Context, art Article) error {
 		return nil
 	})
 }
+
+func (dao *GORMArticleDAO) ListPub(ctx context.Context, start time.Time, offset int, limit int) ([]Article, error) {
+	var res []Article
+	err := dao.db.WithContext(ctx).
+		Where("update_time<?", start.UnixMilli()).
+		Order("update_time DESC").Offset(offset).Limit(limit).Find(&res).Error
+	return res, err
+}
