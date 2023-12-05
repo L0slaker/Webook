@@ -1,0 +1,44 @@
+syntax = "proto3";
+option go_package = "D:/go/GO-LEARNING/src/Prove/grpc";
+
+// windows
+// protoc `--go_out=. `--go_opt=paths=source_relative  `--go-grpc_out=. `--go-grpc_opt=paths=source_relative user.proto
+message User{
+  // 编号可以不连续，但不能从零开始、也不能重复
+  int64 id = 1;
+  string name = 2;
+  string avatar = 4;
+  int64 age = 5;
+  map<string,string> attributes = 6;
+  optional int32 work_age = 7; // 可选的字段，基本很少用到
+  repeated string nickname = 8; // 数组，在go中生成的是切片
+  Address address = 9;
+  oneof contacts{ // 选则其一
+    string email = 10;
+    string phone = 11;
+  }
+  Gender gender = 12;
+}
+
+message Address{
+
+}
+
+enum Gender{ // 枚举类型，必须从0开始
+  Unknown = 0;
+  Male = 1;
+  Female = 2;
+}
+
+service UserService {
+  rpc GetById(GetByIdReq) returns (GetByIdResp);
+  rpc GetByIdV1(GetByIdReq) returns (GetByIdResp);
+}
+
+message GetByIdReq{
+  int64 id = 1;
+}
+
+message GetByIdResp{
+  User user = 1;
+}

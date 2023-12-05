@@ -33,7 +33,7 @@ func main() {
 		//3.2删除文章
 		articleAPI.DELETE("/delete/:id", AuthMiddleware(db), DeleteArticle(db))
 		//3.3更新文章
-		articleAPI.POST("/update/:id", AuthMiddleware(db), UpdateArticle(db))
+		articleAPI.PUT("/update/:id", AuthMiddleware(db), UpdateArticle(db))
 		//3.4查找文章
 		articleAPI.GET("/get/:id", AuthMiddleware(db), GetArticle(db))
 		//3.5展示所有文章
