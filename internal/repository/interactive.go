@@ -6,6 +6,7 @@ import (
 	"Prove/webook/internal/repository/dao"
 	"Prove/webook/pkg/logger"
 	"context"
+	"github.com/ecodeclub/ekit/slice"
 )
 
 type InteractiveRepository interface {
@@ -19,6 +20,7 @@ type InteractiveRepository interface {
 	Liked(ctx context.Context, biz string, bizId, uid int64) (bool, error)
 	Collected(ctx context.Context, biz string, bizId, uid int64) (bool, error)
 	AddRecord(ctx context.Context, uid, aid int64) error
+	GetByIds(ctx context.Context, biz string, ids []int64) ([]domain.Interactive, error)
 }
 
 type CachedCntRepository struct {
@@ -97,12 +99,8 @@ func (c *CachedCntRepository) Get(ctx context.Context, biz string, bizId int64) 
 		return inter, nil
 	}
 	daoInter, err := c.dao.Get(ctx, biz, bizId)
-	if err != nil {
-		return domain.Interactive{}, err
-	}
-	inter = c.toDomain(daoInter)
-	// 异步回写到缓存中
-	go func() {
+	if err == nil {
+		inter = c.toDomain(daoInter)
 		setErr := c.cache.Set(ctx, biz, bizId, inter)
 		if setErr != nil {
 			c.l.Error("回写缓存失败！",
@@ -110,8 +108,9 @@ func (c *CachedCntRepository) Get(ctx context.Context, biz string, bizId int64) 
 				logger.Int64("biz_id", bizId),
 			)
 		}
-	}()
-	return inter, nil
+		return inter, nil
+	}
+	return domain.Interactive{}, err
 }
 
 func (c *CachedCntRepository) Liked(ctx context.Context, biz string, bizId, uid int64) (bool, error) {
@@ -138,6 +137,16 @@ func (c *CachedCntRepository) Collected(ctx context.Context, biz string, bizId, 
 	}
 }
 
+func (c *CachedCntRepository) GetByIds(ctx context.Context, biz string, ids []int64) ([]domain.Interactive, error) {
+	vals, err := c.dao.GetByIds(ctx, biz, ids)
+	if err != nil {
+		return nil, err
+	}
+	return slice.Map[dao.Interactive, domain.Interactive](vals, func(idx int, src dao.Interactive) domain.Interactive {
+		return c.toDomain(src)
+	}), nil
+}
+
 func (c *CachedCntRepository) AddRecord(ctx context.Context, uid, aid int64) error {
 	//TODO implement me
 	panic("implement me")
@@ -145,6 +154,7 @@ func (c *CachedCntRepository) AddRecord(ctx context.Context, uid, aid int64) err
 
 func (c *CachedCntRepository) toDomain(inter dao.Interactive) domain.Interactive {
 	return domain.Interactive{
+		BizId:      inter.BizId,
 		ReadCnt:    inter.ReadCnt,
 		LikeCnt:    inter.LikeCnt,
 		CollectCnt: inter.CollectCnt,
@@ -153,6 +163,7 @@ func (c *CachedCntRepository) toDomain(inter dao.Interactive) domain.Interactive
 
 func (c *CachedCntRepository) toEntity(inter domain.Interactive) dao.Interactive {
 	return dao.Interactive{
+		BizId:      inter.BizId,
 		ReadCnt:    inter.ReadCnt,
 		LikeCnt:    inter.LikeCnt,
 		CollectCnt: inter.CollectCnt,

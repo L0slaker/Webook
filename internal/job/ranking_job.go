@@ -53,17 +53,18 @@ func (r *RankingJob) Run() error {
 		}
 		r.lock = lock
 		go func() {
-			// 多个任务同时试图更新 r.lock，可能会引发意外的行为
-			// 通过本地锁，确保了在同一时刻只有一个任务能够执行续约
-			r.localLock.Lock()
-			defer r.localLock.Unlock()
 			// 自动续约，保证一直持有分布式锁
 			err1 := lock.AutoRefresh(r.timeout/2, time.Second)
 			// 续约失败了，可以重试续约，也可以考虑不处理，下一次再抢锁
 			// 可能是服务出问题了，应该让出锁
 			if err1 != nil {
-				r.lock = nil
+				r.l.Error("续约失败", logger.Error(err))
 			}
+			// 多个任务同时试图更新 r.lock，可能会引发意外的行为
+			// 通过本地锁，确保了在同一时刻只有一个任务能够执行续约
+			r.localLock.Lock()
+			r.lock = nil
+			r.localLock.Unlock()
 		}()
 	}
 

@@ -50,37 +50,40 @@ func (i *interactiveService) Collect(ctx context.Context, biz string, bizId, uid
 }
 
 func (i *interactiveService) Get(ctx context.Context, biz string, bizId, uid int64) (domain.Interactive, error) {
-	var (
-		eg        errgroup.Group
-		inter     domain.Interactive
-		liked     bool
-		collected bool
-	)
-	eg.Go(func() error {
-		var err error
-		inter, err = i.repo.Get(ctx, biz, bizId)
-		return err
-	})
-	eg.Go(func() error {
-		var err error
-		liked, err = i.repo.Liked(ctx, biz, bizId, uid)
-		return err
-	})
-	eg.Go(func() error {
-		var err error
-		collected, err = i.repo.Collected(ctx, biz, bizId, uid)
-		return err
-	})
-	err := eg.Wait()
+	inter, err := i.repo.Get(ctx, biz, bizId)
 	if err != nil {
 		return domain.Interactive{}, err
 	}
-	inter.Liked = liked
-	inter.Collected = collected
-	return inter, err
+	var eg errgroup.Group
+	eg.Go(func() error {
+		inter.Liked, err = i.repo.Liked(ctx, biz, bizId, uid)
+		return err
+	})
+	eg.Go(func() error {
+		inter.Collected, err = i.repo.Collected(ctx, biz, bizId, uid)
+		return err
+	})
+	// 说明是登录过的，补充用户是否点赞或者新的打印日志的形态 zap 本身就有这种用法
+	err = eg.Wait()
+	if err != nil {
+		// 这个查询失败只需要记录日志就可以，不需要中断执行
+		i.l.Error("查询用户是否点赞的信息失败",
+			logger.String("biz", biz),
+			logger.Int64("bizId", bizId),
+			logger.Int64("uid", uid),
+			logger.Error(err))
+	}
+	return inter, nil
 }
 
 func (i *interactiveService) GetByIds(ctx context.Context, biz string, bizIds []int64) (map[int64]domain.Interactive, error) {
-	//TODO implement me
-	panic("implement me")
+	inters, err := i.repo.GetByIds(ctx, biz, bizIds)
+	if err != nil {
+		return nil, err
+	}
+	res := make(map[int64]domain.Interactive, len(inters))
+	for _, inter := range inters {
+		res[inter.BizId] = inter
+	}
+	return res, nil
 }

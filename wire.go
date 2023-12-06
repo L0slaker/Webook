@@ -19,8 +19,9 @@ import (
 var (
 	// 第三方依赖
 	thirdProvider = wire.NewSet(
-		ioc.InitDB, ioc.InitRedis,
+		ioc.InitDB, ioc.InitRedis, ioc.InitRLockClient,
 		ioc.InitLogger, ioc.InitKafka,
+		ioc.NewConsumers, ioc.NewSyncProducer,
 	)
 
 	// 用户模块
@@ -69,7 +70,6 @@ func InitWebServer() *App {
 		interProvider,
 		rankingProvider,
 
-		ioc.NewConsumers, ioc.NewSyncProducer,
 		// 批量处理
 		article.NewInteractiveReadEventBatchConsumer,
 		article.NewKafkaProducer,

@@ -3,14 +3,14 @@
 package startup
 
 import (
+	artEvent "Prove/webook/internal/events/article"
 	"Prove/webook/internal/repository"
-	"Prove/webook/internal/repository/article"
+	artRepo "Prove/webook/internal/repository/article"
 	"Prove/webook/internal/repository/cache"
 	"Prove/webook/internal/repository/dao"
-	article_dao "Prove/webook/internal/repository/dao/article"
+	artDAO "Prove/webook/internal/repository/dao/article"
 	"Prove/webook/internal/service"
-	"Prove/webook/internal/service/sms"
-	"Prove/webook/internal/service/sms/async"
+	interSvc "Prove/webook/internal/service"
 	"Prove/webook/internal/web"
 	ijwt "Prove/webook/internal/web/jwt"
 	"Prove/webook/ioc"
@@ -18,40 +18,55 @@ import (
 	"github.com/google/wire"
 )
 
-var thirdProvider = wire.NewSet(InitRedis, InitTestDB, InitLog)
+var thirdProvider = wire.NewSet(InitRedis,
+	NewSyncProducer,
+	InitKafka,
+	InitTestDB, InitLog)
+
 var userSvcProvider = wire.NewSet(
 	dao.NewUserInfoDAO,
 	cache.NewUserCache,
 	repository.NewUserInfoRepository,
-	service.NewUserService,
-)
+	service.NewUserService)
+
 var articleSvcProvider = wire.NewSet(
-	article_dao.NewGORMArticleDAO,
-	article.NewArticleRepository,
-	service.NewArticleService,
-)
+	artDAO.NewGORMArticleDAO,
+	artRepo.NewArticleRepository,
+	service.NewArticleService)
+
 var interactiveSvcProvider = wire.NewSet(
-	cache.NewRedisInteractiveCache,
 	dao.NewGORMInteractiveDAO,
+	cache.NewRedisInteractiveCache,
 	repository.NewCachedInteractiveRepository,
-	service.NewInteractiveService,
+	interSvc.NewInteractiveService,
 )
 
 func InitWebServer() *gin.Engine {
 	wire.Build(
-		// 初始化第三方依赖
-		thirdProvider, userSvcProvider, articleSvcProvider,
-		//articlSvcProvider,
+		thirdProvider,
+		userSvcProvider,
+		articleSvcProvider,
+
+		InitWechatHandlerConfig,
+		artEvent.NewKafkaProducer,
 		cache.NewRedisCodeCache,
 		repository.NewCodeRepository,
 		// service 部分
-		ioc.InitSMSService, InitPhantomWechatService,
+		// 集成测试我们显式指定使用内存实现
+		ioc.InitSMSService,
+
+		// 指定啥也不干的 wechat service
+		InitPhantomWechatService,
 		service.NewCodeService,
 		// handler 部分
-		web.NewUserHandler, web.NewOAuth2WechatHandler, web.NewArticleHandler,
-		InitWechatHandlerConfig, ijwt.NewRedisJWT,
+		web.NewUserHandler,
+		web.NewOAuth2WechatHandler,
+		web.NewArticleHandler,
+		ijwt.NewRedisJWT,
+
 		// gin 的中间件
 		ioc.InitMiddlewares,
+
 		// Web 服务器
 		ioc.InitEngine,
 	)
@@ -59,12 +74,12 @@ func InitWebServer() *gin.Engine {
 	return gin.Default()
 }
 
-func InitArticleHandler(dao article_dao.ArticleDAO) *web.ArticleHandler {
+func InitArticleHandler(dao artDAO.ArticleDAO) *web.ArticleHandler {
 	wire.Build(thirdProvider,
+		artEvent.NewKafkaProducer,
+		artRepo.NewArticleRepository,
 		service.NewArticleService,
-		web.NewArticleHandler,
-		article.NewArticleRepository,
-	)
+		web.NewArticleHandler)
 	return new(web.ArticleHandler)
 }
 
@@ -78,16 +93,7 @@ func InitJwtHdl() ijwt.Handler {
 	return ijwt.NewRedisJWT(nil)
 }
 
-func InitAsyncSmsService(svc sms.Service) *async.SMSService {
-	wire.Build(thirdProvider,
-		repository.NewAsyncSMSRepository,
-		dao.NewGORMAsyncSmsDAO,
-		async.NewSMSService,
-	)
-	return new(async.SMSService)
-}
-
-func InitInteractiveService() service.InteractiveService {
+func InitInteractiveService() interSvc.InteractiveService {
 	wire.Build(thirdProvider, interactiveSvcProvider)
-	return service.NewInteractiveService(nil, nil)
+	return interSvc.NewInteractiveService(nil, nil)
 }

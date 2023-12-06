@@ -7,14 +7,13 @@
 package startup
 
 import (
+	article3 "Prove/webook/internal/events/article"
 	"Prove/webook/internal/repository"
 	article2 "Prove/webook/internal/repository/article"
 	"Prove/webook/internal/repository/cache"
 	"Prove/webook/internal/repository/dao"
 	"Prove/webook/internal/repository/dao/article"
 	"Prove/webook/internal/service"
-	"Prove/webook/internal/service/sms"
-	"Prove/webook/internal/service/sms/async"
 	"Prove/webook/internal/web"
 	"Prove/webook/internal/web/jwt"
 	"Prove/webook/ioc"
@@ -44,7 +43,10 @@ func InitWebServer() *gin.Engine {
 	oAuth2WechatHandler := web.NewOAuth2WechatHandler(wechatService, userAndService, wechatHandlerConfig, handler)
 	articleDAO := article.NewGORMArticleDAO(gormDB)
 	articleRepository := article2.NewArticleRepository(articleDAO, loggerV1)
-	articleService := service.NewArticleService(articleRepository)
+	client := InitKafka()
+	syncProducer := NewSyncProducer(client)
+	producer := article3.NewKafkaProducer(syncProducer)
+	articleService := service.NewArticleService(articleRepository, loggerV1, producer)
 	articleHandler := web.NewArticleHandler(articleService, loggerV1)
 	engine := ioc.InitEngine(v, userHandler, oAuth2WechatHandler, articleHandler)
 	return engine
@@ -53,7 +55,10 @@ func InitWebServer() *gin.Engine {
 func InitArticleHandler(dao2 article.ArticleDAO) *web.ArticleHandler {
 	loggerV1 := InitLog()
 	articleRepository := article2.NewArticleRepository(dao2, loggerV1)
-	articleService := service.NewArticleService(articleRepository)
+	client := InitKafka()
+	syncProducer := NewSyncProducer(client)
+	producer := article3.NewKafkaProducer(syncProducer)
+	articleService := service.NewArticleService(articleRepository, loggerV1, producer)
 	articleHandler := web.NewArticleHandler(articleService, loggerV1)
 	return articleHandler
 }
@@ -75,15 +80,6 @@ func InitJwtHdl() jwt.Handler {
 	return handler
 }
 
-func InitAsyncSmsService(svc sms.Service) *async.SMSService {
-	gormDB := InitTestDB()
-	asyncSmsDAO := dao.NewGORMAsyncSmsDAO(gormDB)
-	asyncSMSRepository := repository.NewAsyncSMSRepository(asyncSmsDAO)
-	loggerV1 := InitLog()
-	smsService := async.NewSMSService(svc, asyncSMSRepository, loggerV1)
-	return smsService
-}
-
 func InitInteractiveService() service.InteractiveService {
 	cmdable := InitRedis()
 	interactiveCache := cache.NewRedisInteractiveCache(cmdable)
@@ -97,10 +93,13 @@ func InitInteractiveService() service.InteractiveService {
 
 // wire.go:
 
-var thirdProvider = wire.NewSet(InitRedis, InitTestDB, InitLog)
+var thirdProvider = wire.NewSet(InitRedis,
+	NewSyncProducer,
+	InitKafka,
+	InitTestDB, InitLog)
 
 var userSvcProvider = wire.NewSet(dao.NewUserInfoDAO, cache.NewUserCache, repository.NewUserInfoRepository, service.NewUserService)
 
 var articleSvcProvider = wire.NewSet(article.NewGORMArticleDAO, article2.NewArticleRepository, service.NewArticleService)
 
-var interactiveSvcProvider = wire.NewSet(cache.NewRedisInteractiveCache, dao.NewGORMInteractiveDAO, repository.NewCachedInteractiveRepository, service.NewInteractiveService)
+var interactiveSvcProvider = wire.NewSet(dao.NewGORMInteractiveDAO, cache.NewRedisInteractiveCache, repository.NewCachedInteractiveRepository, service.NewInteractiveService)

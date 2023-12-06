@@ -18,6 +18,7 @@ type InteractiveDAO interface {
 	Get(ctx context.Context, biz string, bizId int64) (Interactive, error)
 	InsertCollectionBiz(ctx context.Context, cb UserCollectionBiz) error
 	GetCollectionInfo(ctx context.Context, biz string, bizId, uid int64) (UserCollectionBiz, error)
+	GetByIds(ctx context.Context, biz string, ids []int64) ([]Interactive, error)
 }
 
 type GORMInteractiveDAO struct {
@@ -90,7 +91,7 @@ func (dao *GORMInteractiveDAO) InsertLikeInfo(ctx context.Context, biz string, b
 				"update_time": now,
 				"status":      1,
 			}),
-		}).Create(UserLikeBiz{
+		}).Create(&UserLikeBiz{
 			Uid:        uid,
 			BizId:      bizId,
 			Biz:        biz,
@@ -153,7 +154,7 @@ func (dao *GORMInteractiveDAO) InsertCollectionBiz(ctx context.Context, cb UserC
 		// 更新数量
 		return tx.Clauses(clause.OnConflict{
 			DoUpdates: clause.Assignments(map[string]interface{}{
-				"collect_cnt": gorm.Expr("collect_cnt + 1"),
+				"collect_cnt": gorm.Expr("`collect_cnt` + 1"),
 				"update_time": now,
 			}),
 		}).Create(&Interactive{
@@ -182,8 +183,15 @@ func (dao *GORMInteractiveDAO) GetLikeInfo(ctx context.Context, biz string, bizI
 
 func (dao *GORMInteractiveDAO) Get(ctx context.Context, biz string, bizId int64) (Interactive, error) {
 	var res Interactive
-	err := dao.db.WithContext(ctx).Where("biz = ? AND bizId = ?",
+	err := dao.db.WithContext(ctx).Where("biz = ? AND biz_id = ?",
 		biz, bizId).First(&res).Error
+	return res, err
+}
+
+func (dao *GORMInteractiveDAO) GetByIds(ctx context.Context, biz string, ids []int64) ([]Interactive, error) {
+	var res []Interactive
+	err := dao.db.WithContext(ctx).Where("biz = ? AND id IN ?",
+		biz, ids).Find(&res).Error
 	return res, err
 }
 

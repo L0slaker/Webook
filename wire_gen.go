@@ -60,7 +60,8 @@ func InitWebServer() *App {
 	v2 := ioc.NewConsumers(interactiveReadEventConsumer)
 	interactiveService := service.NewInteractiveService(interactiveRepository, loggerV1)
 	rankingService := service.NewBatchRankingService(articleService, interactiveService)
-	rankingJob := ioc.InitRankingJob(rankingService)
+	rlockClient := ioc.InitRLockClient(cmdable)
+	rankingJob := ioc.InitRankingJob(rankingService, loggerV1, rlockClient)
 	cron := ioc.InitJobs(loggerV1, rankingJob)
 	app := &App{
 		server:    engine,
@@ -74,7 +75,7 @@ func InitWebServer() *App {
 
 var (
 	// 第三方依赖
-	thirdProvider = wire.NewSet(ioc.InitDB, ioc.InitRedis, ioc.InitLogger, ioc.InitKafka)
+	thirdProvider = wire.NewSet(ioc.InitDB, ioc.InitRedis, ioc.InitRLockClient, ioc.InitLogger, ioc.InitKafka, ioc.NewConsumers, ioc.NewSyncProducer)
 
 	// 用户模块
 	userProvider = wire.NewSet(dao.NewUserInfoDAO, cache.NewUserCache, repository.NewUserInfoRepository, service.NewUserService)
