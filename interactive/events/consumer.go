@@ -1,7 +1,7 @@
-package article
+package events
 
 import (
-	"Prove/webook/internal/repository"
+	"Prove/webook/interactive/repository"
 	"Prove/webook/pkg/logger"
 	"Prove/webook/pkg/saramax"
 	"context"
@@ -15,7 +15,8 @@ type InteractiveReadEventConsumer struct {
 	repo   repository.InteractiveRepository
 }
 
-func NewInteractiveReadEventConsumer(client sarama.Client, l logger.LoggerV1, repo repository.InteractiveRepository) *InteractiveReadEventConsumer {
+func NewInteractiveReadEventConsumer(client sarama.Client, l logger.LoggerV1,
+	repo repository.InteractiveRepository) *InteractiveReadEventConsumer {
 	return &InteractiveReadEventConsumer{
 		client: client,
 		l:      l,

@@ -1,7 +1,7 @@
-package article
+package events
 
 import (
-	"Prove/webook/internal/repository"
+	"Prove/webook/interactive/repository"
 	"Prove/webook/pkg/logger"
 	"Prove/webook/pkg/saramax"
 	"context"

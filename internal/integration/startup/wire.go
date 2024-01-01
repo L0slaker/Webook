@@ -10,7 +10,6 @@ import (
 	"Prove/webook/internal/repository/dao"
 	artDAO "Prove/webook/internal/repository/dao/article"
 	"Prove/webook/internal/service"
-	interSvc "Prove/webook/internal/service"
 	"Prove/webook/internal/web"
 	ijwt "Prove/webook/internal/web/jwt"
 	"Prove/webook/ioc"
@@ -33,13 +32,6 @@ var articleSvcProvider = wire.NewSet(
 	artDAO.NewGORMArticleDAO,
 	artRepo.NewArticleRepository,
 	service.NewArticleService)
-
-var interactiveSvcProvider = wire.NewSet(
-	dao.NewGORMInteractiveDAO,
-	cache.NewRedisInteractiveCache,
-	repository.NewCachedInteractiveRepository,
-	interSvc.NewInteractiveService,
-)
 
 func InitWebServer() *gin.Engine {
 	wire.Build(
@@ -91,9 +83,4 @@ func InitUserSvc() service.UserAndService {
 func InitJwtHdl() ijwt.Handler {
 	wire.Build(thirdProvider, ijwt.NewRedisJWT)
 	return ijwt.NewRedisJWT(nil)
-}
-
-func InitInteractiveService() interSvc.InteractiveService {
-	wire.Build(thirdProvider, interactiveSvcProvider)
-	return interSvc.NewInteractiveService(nil, nil)
 }

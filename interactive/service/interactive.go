@@ -1,8 +1,8 @@
 package service
 
 import (
-	"Prove/webook/internal/domain"
-	"Prove/webook/internal/repository"
+	"Prove/webook/interactive/domain"
+	"Prove/webook/interactive/repository"
 	"Prove/webook/pkg/logger"
 	"context"
 	"golang.org/x/sync/errgroup"

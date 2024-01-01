@@ -12,11 +12,11 @@ type RankingRepository interface {
 }
 
 type CachedRankingRepository struct {
-	redisCache cache.RankingRedisCache
-	localCache cache.RankingLocalCache
+	redisCache *cache.RankingRedisCache
+	localCache *cache.RankingLocalCache
 }
 
-func NewCachedRankingRepository(redisCache cache.RankingRedisCache, localCache cache.RankingLocalCache) RankingRepository {
+func NewCachedRankingRepository(redisCache *cache.RankingRedisCache, localCache *cache.RankingLocalCache) RankingRepository {
 	return &CachedRankingRepository{
 		redisCache: redisCache,
 		localCache: localCache,
@@ -31,11 +31,13 @@ func (c *CachedRankingRepository) ReplaceTopN(ctx context.Context, arts []domain
 func (c *CachedRankingRepository) GetTopN(ctx context.Context) ([]domain.Article, error) {
 	res, err := c.localCache.Get(ctx)
 	if err == nil {
-		return res, err
+		return res, nil
 	}
 	res, err = c.redisCache.Get(ctx)
 	if err == nil {
 		_ = c.localCache.Set(ctx, res)
+	} else {
+		return c.localCache.ForceGet(ctx)
 	}
 	return res, err
 }

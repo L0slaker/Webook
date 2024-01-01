@@ -37,3 +37,8 @@ func (r *RankingLocalCache) Set(ctx context.Context, arts []domain.Article) erro
 	r.ddl.Store(time.Now().Add(r.expiration))
 	return nil
 }
+
+func (r *RankingLocalCache) ForceGet(ctx context.Context) ([]domain.Article, error) {
+	arts := r.topN.Load()
+	return arts, nil
+}

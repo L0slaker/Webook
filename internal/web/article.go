@@ -1,6 +1,7 @@
 package web
 
 import (
+	"Prove/webook/api/proto/gen/inter/v1"
 	"Prove/webook/internal/domain"
 	"Prove/webook/internal/errs"
 	"Prove/webook/internal/service"
@@ -19,17 +20,20 @@ import (
 var _ handler = (*ArticleHandler)(nil)
 
 type ArticleHandler struct {
-	svc      service.ArticleService
-	l        logger.LoggerV1
-	interSvc service.InteractiveService
+	svc service.ArticleService
+	l   logger.LoggerV1
+	//interSvc service2.InteractiveService
+	interSvc interv1.InteractiveServiceClient
 	biz      string
 }
 
-func NewArticleHandler(svc service.ArticleService, l logger.LoggerV1) *ArticleHandler {
+func NewArticleHandler(svc service.ArticleService, l logger.LoggerV1,
+	interSvc interv1.InteractiveServiceClient) *ArticleHandler {
 	return &ArticleHandler{
-		svc: svc,
-		l:   l,
-		biz: "article",
+		svc:      svc,
+		l:        l,
+		biz:      "article",
+		interSvc: interSvc,
 	}
 }
 
@@ -50,10 +54,11 @@ func (a *ArticleHandler) Edit(ctx *gin.Context) {
 		a.l.Error("未发现用户的 session 信息！")
 		return
 	}
-	//校验
 
 	// 调用 svc 的代码
 	id, err := a.svc.Save(ctx, req.toDomain(claim.UserId))
+	fmt.Println(err)
+	fmt.Println(err)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, Result{
 			Code: errs.ArticleInternalServerError,
@@ -228,9 +233,10 @@ func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
 	}
 
 	var (
-		inter domain.Interactive
-		eg    errgroup.Group
-		art   domain.Article
+		//inter domain2.Interactive
+		resp *interv1.GetResponse
+		eg   errgroup.Group
+		art  domain.Article
 	)
 	uc := ctx.MustGet("users").(ijwt.UserClaims)
 
@@ -242,7 +248,11 @@ func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
 
 	// 获取文章的计数
 	eg.Go(func() error {
-		inter, err = a.interSvc.Get(ctx, a.biz, id, uc.UserId)
+		resp, err = a.interSvc.Get(ctx, &interv1.GetRequest{
+			Biz:   a.biz,
+			BizId: id,
+			Uid:   uc.UserId,
+		})
 		return err
 	})
 
@@ -257,7 +267,10 @@ func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
 
 	// 增加阅读计数，异步执行即可
 	go func() {
-		cntErr := a.interSvc.IncrReadCnt(ctx, a.biz, art.Id)
+		_, cntErr := a.interSvc.IncrReadCnt(ctx, &interv1.IncrReadCntRequest{
+			Biz:   a.biz,
+			BizId: art.Id,
+		})
 		if cntErr != nil {
 			a.l.Error("增加阅读计数失败！", logger.Int64("author_id", art.Id), logger.Error(cntErr))
 		}
@@ -269,11 +282,11 @@ func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
 			Title:      art.Title,
 			Content:    art.Content,
 			Author:     art.Author.Name,
-			ReadCnt:    inter.ReadCnt,
-			LikeCnt:    inter.LikeCnt,
-			CollectCnt: inter.CollectCnt,
-			Liked:      inter.Liked,
-			Collected:  inter.Collected,
+			ReadCnt:    resp.Inter.ReadCnt,
+			LikeCnt:    resp.Inter.LikeCnt,
+			CollectCnt: resp.Inter.CollectCnt,
+			Liked:      resp.Inter.Liked,
+			Collected:  resp.Inter.Collected,
 			Status:     art.Status.ToUint8(),
 			CreateTime: art.CreateTime.Format(time.RFC1123),
 			UpdateTime: art.UpdateTime.Format(time.RFC1123),
@@ -284,9 +297,17 @@ func (a *ArticleHandler) PubDetail(ctx *gin.Context) {
 func (a *ArticleHandler) Like(ctx *gin.Context, req LikeReq, uc ijwt.UserClaims) (ginx.Result, error) {
 	var err error
 	if req.Like {
-		err = a.interSvc.Like(ctx, a.biz, req.Id, uc.UserId)
+		_, err = a.interSvc.Like(ctx, &interv1.LikeRequest{
+			Biz:   a.biz,
+			BizId: req.Id,
+			Uid:   uc.UserId,
+		})
 	} else {
-		err = a.interSvc.CancelLike(ctx, a.biz, req.Id, uc.UserId)
+		_, err = a.interSvc.CancelLike(ctx, &interv1.CancelLikeRequest{
+			Biz:   a.biz,
+			BizId: req.Id,
+			Uid:   uc.UserId,
+		})
 	}
 	if err != nil {
 		return ginx.Result{
@@ -298,7 +319,12 @@ func (a *ArticleHandler) Like(ctx *gin.Context, req LikeReq, uc ijwt.UserClaims)
 }
 
 func (a *ArticleHandler) Collect(ctx *gin.Context, req CollectReq, uc ijwt.UserClaims) (ginx.Result, error) {
-	err := a.interSvc.Collect(ctx, a.biz, req.Id, req.Cid, uc.UserId)
+	_, err := a.interSvc.Collect(ctx, &interv1.CollectRequest{
+		Biz:   a.biz,
+		BizId: req.Id,
+		Cid:   req.Cid,
+		Uid:   uc.UserId,
+	})
 	if err != nil {
 		return Result{
 			Code: errs.ArticleInternalServerError,

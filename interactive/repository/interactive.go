@@ -1,9 +1,9 @@
 package repository
 
 import (
-	"Prove/webook/internal/domain"
-	"Prove/webook/internal/repository/cache"
-	"Prove/webook/internal/repository/dao"
+	"Prove/webook/interactive/domain"
+	"Prove/webook/interactive/repository/cache"
+	"Prove/webook/interactive/repository/dao"
 	"Prove/webook/pkg/logger"
 	"context"
 	"github.com/ecodeclub/ekit/slice"
@@ -154,6 +154,7 @@ func (c *CachedCntRepository) AddRecord(ctx context.Context, uid, aid int64) err
 
 func (c *CachedCntRepository) toDomain(inter dao.Interactive) domain.Interactive {
 	return domain.Interactive{
+		Biz:        inter.Biz,
 		BizId:      inter.BizId,
 		ReadCnt:    inter.ReadCnt,
 		LikeCnt:    inter.LikeCnt,
@@ -163,6 +164,7 @@ func (c *CachedCntRepository) toDomain(inter dao.Interactive) domain.Interactive
 
 func (c *CachedCntRepository) toEntity(inter domain.Interactive) dao.Interactive {
 	return dao.Interactive{
+		Biz:        inter.Biz,
 		BizId:      inter.BizId,
 		ReadCnt:    inter.ReadCnt,
 		LikeCnt:    inter.LikeCnt,

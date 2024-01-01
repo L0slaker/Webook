@@ -9,7 +9,7 @@
 package svcmocks
 
 import (
-	domain "Prove/webook/internal/domain"
+	"Prove/webook/interactive/domain"
 	context "context"
 	reflect "reflect"
 

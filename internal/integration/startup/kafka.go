@@ -1,8 +1,6 @@
 package startup
 
 import (
-	"Prove/webook/internal/events"
-	"Prove/webook/internal/events/article"
 	"github.com/IBM/sarama"
 )
 
@@ -22,8 +20,4 @@ func NewSyncProducer(client sarama.Client) sarama.SyncProducer {
 		panic(err)
 	}
 	return producer
-}
-
-func NewConsumers(c *article.InteractiveReadEventConsumer) []events.Consumer {
-	return []events.Consumer{c}
 }

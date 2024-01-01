@@ -24,10 +24,11 @@ func NewRankingJob(svc service.RankingService, timeout time.Duration,
 	return &RankingJob{
 		svc: svc,
 		// 过期时间要根据数据量来计算
-		timeout: timeout,
-		client:  client,
-		key:     "rlock:cron_job:ranking",
-		l:       l,
+		timeout:   timeout,
+		client:    client,
+		key:       "rlock:cron_job:ranking",
+		l:         l,
+		localLock: &sync.Mutex{},
 	}
 }
 
@@ -49,7 +50,7 @@ func (r *RankingJob) Run() error {
 			Max:      5,
 		}, time.Second)
 		if err != nil {
-			return err
+			return nil
 		}
 		r.lock = lock
 		go func() {

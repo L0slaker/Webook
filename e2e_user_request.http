@@ -23,18 +23,19 @@ Content-Type: application/json
 ### 信息展示
 GET http://localhost:8080/users/profile
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTU0NzU2MjQsIlVzZXJJZCI6MSwiU3NpZCI6IjIzZTgwNWUwLTQ3MWEtNDE3My04YzkxLTgzZDcyNDc0OWM0OSIsIlVzZXJBZ2VudCI6IkFwYWNoZS1IdHRwQ2xpZW50LzQuNS4xMyAoSmF2YS8xNy4wLjMpIn0.GKREl-7P0ETYK-eWdaVfeUNwgj39p5UJU-1_cw00REujFgwXnX4i3HCn9c93aB-w7pafaO-L9dxTvGuxIYbInw
+Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDIxMDA2MTQsIlVzZXJJZCI6NywiU3NpZCI6ImNiZjI1YWU2LTM0MDUtNGM2MS05MWM2LTQ0NDg0ZDhhOGY0YyIsIlVzZXJBZ2VudCI6IkFwYWNoZS1IdHRwQ2xpZW50LzQuNS4xMyAoSmF2YS8xNy4wLjMpIn0.98HAV_-uswxnFiA9j1JfzXUCTnvL9r2pq0D1rmCe-wn25Ks1eR97PzPdtAr4MoQPWhI9gMc-As0Z7EXUAs7epA
 //Cookie: ssid=MTY5MTc2NDI0NHxEdi1CQkFFQ180SUFBUkFCRUFBQUhfLUNBQUVHYzNSeWFXNW5EQWdBQm5WelpYSkpaQVZwYm5RMk5BUUNBQVE9fBSJ76hM1ZDqFolm5MmWEGRdMfOxnj-c99bmC7zWg4qd
 
 ### 信息修改
 POST http://localhost:8080/users/edit
 Content-Type: application/json
 #Cookie: ssid=MTY5MTc2NDI0NHxEdi1CQkFFQ180SUFBUkFCRUFBQUhfLUNBQUVHYzNSeWFXNW5EQWdBQm5WelpYSkpaQVZwYm5RMk5BUUNBQVE9fBSJ76hM1ZDqFolm5MmWEGRdMfOxnj-c99bmC7zWg4qd
-Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTU0NzU2MjQsIlVzZXJJZCI6MSwiU3NpZCI6IjIzZTgwNWUwLTQ3MWEtNDE3My04YzkxLTgzZDcyNDc0OWM0OSIsIlVzZXJBZ2VudCI6IkFwYWNoZS1IdHRwQ2xpZW50LzQuNS4xMyAoSmF2YS8xNy4wLjMpIn0.GKREl-7P0ETYK-eWdaVfeUNwgj39p5UJU-1_cw00REujFgwXnX4i3HCn9c93aB-w7pafaO-L9dxTvGuxIYbInw
+Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MDIxMDA2MTQsIlVzZXJJZCI6NywiU3NpZCI6ImNiZjI1YWU2LTM0MDUtNGM2MS05MWM2LTQ0NDg0ZDhhOGY0YyIsIlVzZXJBZ2VudCI6IkFwYWNoZS1IdHRwQ2xpZW50LzQuNS4xMyAoSmF2YS8xNy4wLjMpIn0.98HAV_-uswxnFiA9j1JfzXUCTnvL9r2pq0D1rmCe-wn25Ks1eR97PzPdtAr4MoQPWhI9gMc-As0Z7EXUAs7epA
+
 
 {
-  "nickname": "Kobe",
-  "birthday":"2000-12-22"
+  "nickname": "Lbj",
+  "birthday":"2000-01-22"
 }
 
 ### 登陆
@@ -42,9 +43,8 @@ POST http://localhost:8080/users/login
 Content-Type: application/json
 
 {
-  "email": "l0slakers@gmail.com",
-  "password": "Abcd#1234",
-  "confirmPassword": "Abcd#1234"
+  "email": "biangyes@gmail.com",
+  "password": "Abcd#W1234"
 }
 
 ### 注册
@@ -52,7 +52,7 @@ POST http://localhost:8080/users/signup
 Content-Type: application/json
 
 {
-  "email": "1141688633@qq.com",
-  "password": "Abcd#W123",
-  "confirmPassword": "Abcd#W123"
+  "email": "biangyes@gmail.com",
+  "password": "Abcd#W1234",
+  "confirmPassword": "Abcd#W1234"
 }

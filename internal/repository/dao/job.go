@@ -54,8 +54,8 @@ func (dao *GormJobDAO) Preempt(ctx context.Context) (Job, error) {
 		now := time.Now().UnixMilli()
 		var j Job
 		// if next_time <= now && status == 0，这时候就可以抢占任务了
-		err := db.WithContext(ctx).Where("status = ? AND next_time <= ?", jobStatusWaiting, now).
-			First(&j).Error
+		err := db.WithContext(ctx).Where("status = ? AND next_time <= ?",
+			jobStatusWaiting, now).First(&j).Error
 		if err != nil {
 			return Job{}, err
 		}

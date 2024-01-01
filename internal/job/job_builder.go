@@ -19,7 +19,7 @@ type CronJobBuilder struct {
 
 func NewCronJobBuilder(l logger.LoggerV1) *CronJobBuilder {
 	vec := prometheus.NewSummaryVec(prometheus.SummaryOpts{
-		Namespace: "geekbang-l0slakers",
+		Namespace: "geekbang_l0slakers",
 		Subsystem: "webook",
 		Name:      "cron_job",
 		Help:      "统计定时任务的执行情况",
@@ -52,7 +52,7 @@ func (c *CronJobBuilder) Build(job Job) cron.Job {
 			span.RecordError(err)
 			c.l.Error("任务运行失败", logger.String("job", name))
 		}
-		return err
+		return nil
 	})
 }
 

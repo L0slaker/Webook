@@ -1,6 +1,7 @@
 package service
 
 import (
+	interv1 "Prove/webook/api/proto/gen/inter/v1"
 	"Prove/webook/internal/domain"
 	"Prove/webook/internal/repository"
 	"context"
@@ -17,20 +18,22 @@ type RankingService interface {
 
 // BatchRankingService 既操作文章，也操作计数，作为聚合服务来使用
 type BatchRankingService struct {
-	artSvc    ArticleService
-	interSvc  InteractiveService
+	artSvc ArticleService
+	//interSvc  service.InteractiveService
+	interSvc  interv1.InteractiveServiceClient
 	repo      repository.RankingRepository
 	batchSize int // 批量大小
 	n         int //排行榜数量
 	scoreFunc func(t time.Time, likeCnt int64) float64
 }
 
-func NewBatchRankingService(artSvc ArticleService, interSvc InteractiveService) RankingService {
+func NewBatchRankingService(artSvc ArticleService, repo repository.RankingRepository, interSvc interv1.InteractiveServiceClient) RankingService {
 	return &BatchRankingService{
 		artSvc:    artSvc,
 		interSvc:  interSvc,
 		batchSize: 100,
 		n:         100,
+		repo:      repo,
 		scoreFunc: func(t time.Time, likeCnt int64) float64 {
 			sec := time.Since(t).Seconds()
 			return float64(likeCnt-1) / math.Pow(sec+2, 1.5)
@@ -76,10 +79,21 @@ func (svc *BatchRankingService) topN(ctx context.Context) ([]domain.Article, err
 			func(idx int, src domain.Article) int64 {
 				return src.Id
 			})
-		inters, err := svc.interSvc.GetByIds(ctx, "article", ids)
+		inters, err := svc.interSvc.GetByIds(ctx, &interv1.GetByIdsRequest{
+			Biz:    "article",
+			BizIds: ids,
+		})
+
+		if err != nil {
+			return nil, err
+		}
+		if len(inters.Inters) == 0 {
+			return nil, errors.New("没有数据")
+		}
+
 		// 计算结果
 		for _, art := range arts {
-			inter := inters[art.Id]
+			inter := inters.Inters[art.Id]
 			score := svc.scoreFunc(art.UpdateTime, inter.LikeCnt)
 			// 这里需要注意，如果榜单没有满，那么替换操作毫无意义
 			err = topN.Enqueue(Score{

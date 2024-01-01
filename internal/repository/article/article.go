@@ -40,7 +40,7 @@ type articleRepository struct {
 	producer article.KafkaProducer
 }
 
-func NewArticleRepository(dao dao.ArticleDAO, logger logger.LoggerV1) ArticleRepository {
+func NewArticleRepository(dao dao.ArticleDAO, c cache.ArticleCache, logger logger.LoggerV1) ArticleRepository {
 	return &articleRepository{
 		dao:    dao,
 		logger: logger,

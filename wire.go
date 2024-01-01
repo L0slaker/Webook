@@ -3,6 +3,11 @@
 package main
 
 import (
+	"Prove/webook/interactive/events"
+	repository2 "Prove/webook/interactive/repository"
+	cache2 "Prove/webook/interactive/repository/cache"
+	dao2 "Prove/webook/interactive/repository/dao"
+	service2 "Prove/webook/interactive/service"
 	"Prove/webook/internal/events/article"
 	"Prove/webook/internal/repository"
 	artRepo "Prove/webook/internal/repository/article"
@@ -41,24 +46,38 @@ var (
 	// 文章模块
 	articleProvider = wire.NewSet(
 		artDAO.NewGORMArticleDAO,
+		cache.NewRedisArticleCache,
 		artRepo.NewArticleRepository,
 		service.NewArticleService,
 	)
 
 	// 阅读计数模块
 	interProvider = wire.NewSet(
-		dao.NewGORMInteractiveDAO,
-		cache.NewRedisInteractiveCache,
-		repository.NewCachedInteractiveRepository,
-		service.NewInteractiveService,
+		dao2.NewGORMInteractiveDAO,
+		cache2.NewRedisInteractiveCache,
+		repository2.NewCachedInteractiveRepository,
+		service2.NewInteractiveService,
 	)
 
 	// 排行榜模块
 	rankingProvider = wire.NewSet(
 		cache.NewRankingRedisCache,
+		cache.NewRankingLocalCache,
 		repository.NewCachedRankingRepository,
 		service.NewBatchRankingService,
 	)
+	// App (*cron.Cron)
+	// InitJobs(*job.RankingJob) *cron.Cron
+	// InitRankingJob(svc service.RankingService) *job.RankingJob
+	// NewBatchRankingService(
+	//       ArticleService,
+	//       repository.RankingRepository,
+	//		 interv1.InteractiveServiceClient) RankingService
+	// NewCachedRankingRepository(
+	//		 *cache.RankingRedisCache,
+	//		 *cache.RankingLocalCache) RankingRepository
+	// NewRankingRedisCache() *RankingRedisCache
+	// NewRankingLocalCache() *RankingLocalCache
 )
 
 func InitWebServer() *App {
@@ -71,10 +90,11 @@ func InitWebServer() *App {
 		rankingProvider,
 
 		// 批量处理
-		article.NewInteractiveReadEventBatchConsumer,
+		events.NewInteractiveReadEventBatchConsumer,
 		article.NewKafkaProducer,
 
 		ioc.InitSMSService, ioc.InitWechatService,
+		ioc.InitInteractiveGRPCClient,
 		ioc.InitRankingJob, ioc.InitJobs,
 
 		// 初始化 handler

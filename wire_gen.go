@@ -7,6 +7,11 @@
 package main
 
 import (
+	"Prove/webook/interactive/events"
+	repository2 "Prove/webook/interactive/repository"
+	cache2 "Prove/webook/interactive/repository/cache"
+	dao2 "Prove/webook/interactive/repository/dao"
+	service2 "Prove/webook/interactive/service"
 	article3 "Prove/webook/internal/events/article"
 	"Prove/webook/internal/repository"
 	article2 "Prove/webook/internal/repository/article"
@@ -46,20 +51,25 @@ func InitWebServer() *App {
 	wechatHandlerConfig := ioc.InitWechatHandlerConfig()
 	oAuth2WechatHandler := web.NewOAuth2WechatHandler(wechatService, userAndService, wechatHandlerConfig, handler)
 	articleDAO := article.NewGORMArticleDAO(db)
-	articleRepository := article2.NewArticleRepository(articleDAO, loggerV1)
+	articleCache := cache.NewRedisArticleCache(cmdable)
+	articleRepository := article2.NewArticleRepository(articleDAO, articleCache, loggerV1)
 	client := ioc.InitKafka()
 	syncProducer := ioc.NewSyncProducer(client)
 	producer := article3.NewKafkaProducer(syncProducer)
 	articleService := service.NewArticleService(articleRepository, loggerV1, producer)
-	articleHandler := web.NewArticleHandler(articleService, loggerV1)
+	interactiveCache := cache2.NewRedisInteractiveCache(cmdable)
+	interactiveDAO := dao2.NewGORMInteractiveDAO(db)
+	interactiveRepository := repository2.NewCachedInteractiveRepository(interactiveCache, interactiveDAO, loggerV1)
+	interactiveService := service2.NewInteractiveService(interactiveRepository, loggerV1)
+	interactiveServiceClient := ioc.InitInteractiveGRPCClient(interactiveService)
+	articleHandler := web.NewArticleHandler(articleService, loggerV1, interactiveServiceClient)
 	engine := ioc.InitEngine(v, userHandler, oAuth2WechatHandler, articleHandler)
-	interactiveCache := cache.NewRedisInteractiveCache(cmdable)
-	interactiveDAO := dao.NewGORMInteractiveDAO(db)
-	interactiveRepository := repository.NewCachedInteractiveRepository(interactiveCache, interactiveDAO, loggerV1)
-	interactiveReadEventConsumer := article3.NewInteractiveReadEventBatchConsumer(client, loggerV1, interactiveRepository)
+	interactiveReadEventConsumer := events.NewInteractiveReadEventBatchConsumer(client, loggerV1, interactiveRepository)
 	v2 := ioc.NewConsumers(interactiveReadEventConsumer)
-	interactiveService := service.NewInteractiveService(interactiveRepository, loggerV1)
-	rankingService := service.NewBatchRankingService(articleService, interactiveService)
+	rankingRedisCache := cache.NewRankingRedisCache(cmdable)
+	rankingLocalCache := cache.NewRankingLocalCache()
+	rankingRepository := repository.NewCachedRankingRepository(rankingRedisCache, rankingLocalCache)
+	rankingService := service.NewBatchRankingService(articleService, rankingRepository, interactiveServiceClient)
 	rlockClient := ioc.InitRLockClient(cmdable)
 	rankingJob := ioc.InitRankingJob(rankingService, loggerV1, rlockClient)
 	cron := ioc.InitJobs(loggerV1, rankingJob)
@@ -84,11 +94,11 @@ var (
 	codeProvider = wire.NewSet(cache.NewRedisCodeCache, repository.NewCodeRepository, service.NewCodeService)
 
 	// 文章模块
-	articleProvider = wire.NewSet(article.NewGORMArticleDAO, article2.NewArticleRepository, service.NewArticleService)
+	articleProvider = wire.NewSet(article.NewGORMArticleDAO, cache.NewRedisArticleCache, article2.NewArticleRepository, service.NewArticleService)
 
 	// 阅读计数模块
-	interProvider = wire.NewSet(dao.NewGORMInteractiveDAO, cache.NewRedisInteractiveCache, repository.NewCachedInteractiveRepository, service.NewInteractiveService)
+	interProvider = wire.NewSet(dao2.NewGORMInteractiveDAO, cache2.NewRedisInteractiveCache, repository2.NewCachedInteractiveRepository, service2.NewInteractiveService)
 
 	// 排行榜模块
-	rankingProvider = wire.NewSet(cache.NewRankingRedisCache, repository.NewCachedRankingRepository, service.NewBatchRankingService)
+	rankingProvider = wire.NewSet(cache.NewRankingRedisCache, cache.NewRankingLocalCache, repository.NewCachedRankingRepository, service.NewBatchRankingService)
 )

@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"Prove/webook/internal/domain"
+	"Prove/webook/interactive/domain"
 	"context"
 	_ "embed"
 	"fmt"
@@ -85,6 +85,7 @@ func (r *RedisInteractiveCache) Get(ctx context.Context, biz string, bizId int64
 
 	return domain.Interactive{
 		BizId:      bizId,
+		Biz:        biz,
 		ReadCnt:    readCnt,
 		LikeCnt:    likeCnt,
 		CollectCnt: collectCnt,

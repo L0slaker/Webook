@@ -1,31 +1,27 @@
-package article
+package events
 
 import (
-	"Prove/webook/internal/repository"
 	"Prove/webook/pkg/logger"
 	"Prove/webook/pkg/saramax"
 	"context"
 	"github.com/IBM/sarama"
-	"time"
 )
 
 type HistoryReadEventConsumer struct {
 	client sarama.Client
 	l      logger.LoggerV1
-	repo   repository.InteractiveRepository
+	//repo   repository2.HistoryRecordRepository
 }
 
-func NewHistoryReadEventConsumer(client sarama.Client, l logger.LoggerV1,
-	repo repository.InteractiveRepository) *HistoryReadEventConsumer {
+func NewHistoryReadEventConsumer(client sarama.Client, l logger.LoggerV1) *HistoryReadEventConsumer {
 	return &HistoryReadEventConsumer{
 		client: client,
 		l:      l,
-		repo:   repo,
 	}
 }
 
 func (h *HistoryReadEventConsumer) Start() error {
-	cg, err := sarama.NewConsumerGroupFromClient("interactive", h.client)
+	cg, err := sarama.NewConsumerGroupFromClient("history_record", h.client)
 	if err != nil {
 		return err
 	}
@@ -41,7 +37,8 @@ func (h *HistoryReadEventConsumer) Start() error {
 }
 
 func (h *HistoryReadEventConsumer) Consume(msg *sarama.ConsumerMessage, t ReadEvent) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	return h.repo.AddRecord(ctx, t.Uid, t.Aid)
+	//ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	//defer cancel()
+	//return h.repo.AddRecord(ctx, t.Uid, t.Aid)
+	panic("implement me")
 }
