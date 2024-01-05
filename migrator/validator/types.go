@@ -6,6 +6,8 @@ import (
 	"Prove/webook/pkg/logger"
 	"context"
 	"github.com/ecodeclub/ekit/slice"
+	"github.com/ecodeclub/ekit/syncx/atomicx"
+	"golang.org/x/sync/errgroup"
 	"gorm.io/gorm"
 	"time"
 )
@@ -16,16 +18,32 @@ type Validator[T migrator.Entity] struct {
 	// 2.如果以目标表为准(第三阶段)，那么 base = 目标表，target = 源表
 	base      *gorm.DB // 校验，以 XXX 为准
 	target    *gorm.DB // 校验的数据
+	direction string   // 基准
+	batchSize int      // 批量
 	l         logger.LoggerV1
 	p         events.Producer
-	direction string
-	batchSize int
+	highLoad  *atomicx.Value[bool]
 }
 
-// Validate 调用者可以通过调用 Context 来控制检验程序终止
-func (v *Validator[T]) Validate(ctx context.Context) {
-	var offset int
+func (v *Validator[T]) Validate(ctx context.Context) error {
+	var eg errgroup.Group
+	eg.Go(func() error {
+		v.validateBaseToTarget(ctx)
+		return nil
+	})
+	eg.Go(func() error {
+		v.validateTargetToBase(ctx)
+		return nil
+	})
+	return eg.Wait()
+}
+
+func (v *Validator[T]) validateBaseToTarget(ctx context.Context) {
+	offset := -1
 	for {
+		if v.highLoad.Load() {
+			// 负载过高时，暂时挂起校验
+		}
 		dbCtx, cancel := context.WithTimeout(ctx, time.Second)
 		offset++
 		var src T
@@ -56,8 +74,8 @@ func (v *Validator[T]) Validate(ctx context.Context) {
 }
 
 // validateTargetToBase 反向校验，找出 target 中存在而 base 中不存在的数据
-func (v *Validator[T]) validateTargetToBase(ctx context.Context, id int64, typ string) {
-	offset := v.batchSize
+func (v *Validator[T]) validateTargetToBase(ctx context.Context) {
+	offset := -v.batchSize
 	for {
 		offset += v.batchSize
 		dbCtx, cancel := context.WithTimeout(ctx, time.Second)
