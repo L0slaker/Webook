@@ -14,6 +14,8 @@ const (
 	patternDstOnly  = "DST_ONLY"
 )
 
+var ErrUnknownPattern = errors.New("未知的写入模式")
+
 type DoubleWriteDAO struct {
 	src     InteractiveDAO
 	dst     InteractiveDAO
@@ -60,46 +62,174 @@ func (d *DoubleWriteDAO) IncrReadCnt(ctx context.Context, biz string, bizId int6
 	case patternDstOnly:
 		return d.dst.IncrReadCnt(ctx, biz, bizId)
 	default:
-		return errors.New("未知的写入模式")
+		return ErrUnknownPattern
 	}
 }
 
 func (d *DoubleWriteDAO) BatchIncrReadCnt(ctx context.Context, bizs []string, ids []int64) error {
-	//TODO implement me
-	panic("implement me")
+	switch d.pattern.Load() {
+	case patternSrcOnly:
+		return d.src.BatchIncrReadCnt(ctx, bizs, ids)
+	case patternSrcFirst:
+		err := d.src.BatchIncrReadCnt(ctx, bizs, ids)
+		if err != nil {
+			return err
+		}
+		err = d.dst.BatchIncrReadCnt(ctx, bizs, ids)
+		if err != nil {
+			d.l.Error("写入 dst 失败！", logger.Error(err))
+		}
+		return nil
+	case patternDstFirst:
+		err := d.dst.BatchIncrReadCnt(ctx, bizs, ids)
+		if err != nil {
+			return err
+		}
+		err = d.src.BatchIncrReadCnt(ctx, bizs, ids)
+		if err != nil {
+			d.l.Error("写入 src 失败！", logger.Error(err))
+		}
+		return nil
+	case patternDstOnly:
+		return d.dst.BatchIncrReadCnt(ctx, bizs, ids)
+	default:
+		return ErrUnknownPattern
+	}
 }
 
 func (d *DoubleWriteDAO) InsertLikeInfo(ctx context.Context, biz string, bizId, uid int64) error {
-	//TODO implement me
-	panic("implement me")
+	switch d.pattern.Load() {
+	case patternSrcOnly:
+		return d.src.InsertLikeInfo(ctx, biz, bizId, uid)
+	case patternSrcFirst:
+		err := d.src.InsertLikeInfo(ctx, biz, bizId, uid)
+		if err != nil {
+			return err
+		}
+		err = d.dst.InsertLikeInfo(ctx, biz, bizId, uid)
+		if err != nil {
+			d.l.Error("写入 dst 失败！", logger.Error(err))
+		}
+		return nil
+	case patternDstFirst:
+		err := d.dst.InsertLikeInfo(ctx, biz, bizId, uid)
+		if err != nil {
+			return err
+		}
+		err = d.src.InsertLikeInfo(ctx, biz, bizId, uid)
+		if err != nil {
+			d.l.Error("写入 src 失败！", logger.Error(err))
+		}
+		return nil
+	case patternDstOnly:
+		return d.dst.InsertLikeInfo(ctx, biz, bizId, uid)
+	default:
+		return ErrUnknownPattern
+	}
 }
 
 func (d *DoubleWriteDAO) GetLikeInfo(ctx context.Context, biz string, bizId, uid int64) (UserLikeBiz, error) {
-	//TODO implement me
-	panic("implement me")
+	switch d.pattern.Load() {
+	case patternSrcOnly, patternSrcFirst:
+		return d.src.GetLikeInfo(ctx, biz, bizId, uid)
+	case patternDstFirst, patternDstOnly:
+		return d.dst.GetLikeInfo(ctx, biz, bizId, uid)
+	default:
+		return UserLikeBiz{}, ErrUnknownPattern
+	}
 }
 
 func (d *DoubleWriteDAO) DeleteLikeInfo(ctx context.Context, biz string, bizId, uid int64) error {
-	//TODO implement me
-	panic("implement me")
+	switch d.pattern.Load() {
+	case patternSrcOnly:
+		return d.src.DeleteLikeInfo(ctx, biz, bizId, uid)
+	case patternSrcFirst:
+		err := d.src.DeleteLikeInfo(ctx, biz, bizId, uid)
+		if err != nil {
+			return err
+		}
+		err = d.dst.DeleteLikeInfo(ctx, biz, bizId, uid)
+		if err != nil {
+			d.l.Error("从 dst 删除失败！", logger.Error(err))
+		}
+		return nil
+	case patternDstFirst:
+		err := d.dst.DeleteLikeInfo(ctx, biz, bizId, uid)
+		if err != nil {
+			return err
+		}
+		err = d.src.DeleteLikeInfo(ctx, biz, bizId, uid)
+		if err != nil {
+			d.l.Error("从 src 删除失败！", logger.Error(err))
+		}
+		return nil
+	case patternDstOnly:
+		return d.dst.DeleteLikeInfo(ctx, biz, bizId, uid)
+	default:
+		return ErrUnknownPattern
+	}
 }
 
 func (d *DoubleWriteDAO) Get(ctx context.Context, biz string, bizId int64) (Interactive, error) {
-	//TODO implement me
-	panic("implement me")
+	switch d.pattern.Load() {
+	case patternSrcOnly, patternSrcFirst:
+		return d.src.Get(ctx, biz, bizId)
+	case patternDstFirst, patternDstOnly:
+		return d.dst.Get(ctx, biz, bizId)
+	default:
+		return Interactive{}, ErrUnknownPattern
+	}
 }
 
 func (d *DoubleWriteDAO) InsertCollectionBiz(ctx context.Context, cb UserCollectionBiz) error {
-	//TODO implement me
-	panic("implement me")
+	switch d.pattern.Load() {
+	case patternSrcOnly:
+		return d.src.InsertCollectionBiz(ctx, cb)
+	case patternSrcFirst:
+		err := d.src.InsertCollectionBiz(ctx, cb)
+		if err != nil {
+			return err
+		}
+		err = d.dst.InsertCollectionBiz(ctx, cb)
+		if err != nil {
+			d.l.Error("写入 dst 失败！", logger.Error(err))
+		}
+		return nil
+	case patternDstFirst:
+		err := d.dst.InsertCollectionBiz(ctx, cb)
+		if err != nil {
+			return err
+		}
+		err = d.src.InsertCollectionBiz(ctx, cb)
+		if err != nil {
+			d.l.Error("写入 src 失败！", logger.Error(err))
+		}
+		return nil
+	case patternDstOnly:
+		return d.dst.InsertCollectionBiz(ctx, cb)
+	default:
+		return ErrUnknownPattern
+	}
 }
 
 func (d *DoubleWriteDAO) GetCollectionInfo(ctx context.Context, biz string, bizId, uid int64) (UserCollectionBiz, error) {
-	//TODO implement me
-	panic("implement me")
+	switch d.pattern.Load() {
+	case patternSrcOnly, patternSrcFirst:
+		return d.src.GetCollectionInfo(ctx, biz, bizId, uid)
+	case patternDstFirst, patternDstOnly:
+		return d.dst.GetCollectionInfo(ctx, biz, bizId, uid)
+	default:
+		return UserCollectionBiz{}, ErrUnknownPattern
+	}
 }
 
 func (d *DoubleWriteDAO) GetByIds(ctx context.Context, biz string, ids []int64) ([]Interactive, error) {
-	//TODO implement me
-	panic("implement me")
+	switch d.pattern.Load() {
+	case patternSrcOnly, patternSrcFirst:
+		return d.src.GetByIds(ctx, biz, ids)
+	case patternDstFirst, patternDstOnly:
+		return d.dst.GetByIds(ctx, biz, ids)
+	default:
+		return []Interactive{}, ErrUnknownPattern
+	}
 }

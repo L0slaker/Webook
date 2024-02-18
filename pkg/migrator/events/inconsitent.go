@@ -3,7 +3,7 @@ package events
 import "context"
 
 type Producer interface {
-	ProduceInconsistentEvents(ctx context.Context, evt InconsistentEvent) error
+	ProduceInconsistentEvent(ctx context.Context, evt InconsistentEvent) error
 }
 
 type InconsistentEvent struct {

@@ -17,7 +17,11 @@ func main() {
 			panic(err)
 		}
 	}
-
+	go func() {
+		// 统一管理端口
+		err := app.webAdmin.Start()
+		log.Println(err)
+	}()
 	err := app.server.Serve()
 	if err != nil {
 		panic(err)

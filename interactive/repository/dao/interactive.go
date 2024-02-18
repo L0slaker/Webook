@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"Prove/webook/pkg/migrator"
 	"context"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -206,6 +207,15 @@ type Interactive struct {
 	UpdateTime int64
 }
 
+func (i Interactive) ID() int64 {
+	return i.Id
+}
+
+func (i Interactive) CompareTo(dst migrator.Entity) bool {
+	dstVal, ok := dst.(Interactive)
+	return ok && i == dstVal
+}
+
 type UserLikeBiz struct {
 	Id int64 `gorm:"primaryKey,autoIncrement"`
 	// 查询用户是否有点赞：WHERE uid = ? AND biz_id = ? AND biz = ?
@@ -223,6 +233,15 @@ type UserLikeBiz struct {
 	Status uint8
 }
 
+func (i UserLikeBiz) ID() int64 {
+	return i.Id
+}
+
+func (i UserLikeBiz) CompareTo(dst migrator.Entity) bool {
+	dstVal, ok := dst.(UserLikeBiz)
+	return ok && i == dstVal
+}
+
 type UserCollectionBiz struct {
 	Id  int64 `gorm:"primaryKey,autoIncrement"`
 	Uid int64 `gorm:"uniqueIndex:biz_type_id_uid"`
@@ -234,6 +253,15 @@ type UserCollectionBiz struct {
 	UpdateTime int64
 }
 
+func (i UserCollectionBiz) ID() int64 {
+	return i.Id
+}
+
+func (i UserCollectionBiz) CompareTo(dst migrator.Entity) bool {
+	dstVal, ok := dst.(UserCollectionBiz)
+	return ok && i == dstVal
+}
+
 // Collection 收藏夹
 type Collection struct {
 	Id         int64  `gorm:"primaryKey,autoIncrement"`
@@ -241,4 +269,13 @@ type Collection struct {
 	Uid        int64
 	CreateTime int64
 	UpdateTime int64
+}
+
+func (i Collection) ID() int64 {
+	return i.Id
+}
+
+func (i Collection) CompareTo(dst migrator.Entity) bool {
+	dstVal, ok := dst.(Collection)
+	return ok && i == dstVal
 }

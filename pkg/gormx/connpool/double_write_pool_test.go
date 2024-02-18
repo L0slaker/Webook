@@ -24,7 +24,7 @@ func TestPoolTest(t *testing.T) {
 		Conn: &DoubleWritePool{
 			src:     webook.ConnPool,
 			dst:     inter.ConnPool,
-			pattern: atomicx.NewValueOf(patternSrcFirst),
+			pattern: atomicx.NewValueOf(PatternSrcFirst),
 			l:       nil,
 		},
 	}))

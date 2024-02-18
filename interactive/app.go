@@ -1,6 +1,7 @@
 package main
 
 import (
+	"Prove/webook/pkg/ginx"
 	"Prove/webook/pkg/grpcx"
 	"Prove/webook/pkg/saramax"
 )
@@ -9,4 +10,5 @@ import (
 type App struct {
 	server    *grpcx.Server
 	consumers []saramax.Consumer
+	webAdmin  *ginx.Server
 }
