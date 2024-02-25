@@ -16,6 +16,12 @@ kafka:
   addrs:
     - "localhost:9094"
 
+etcd:
+  endpoints:
+    - "localhost:12379"
 grpc:
   server:
-    addr: ":8090"
+    #  启动监听 8094 端口
+    port: 8094
+    etcdAddr: "localhost:12379"
+    etcdTTL: 60

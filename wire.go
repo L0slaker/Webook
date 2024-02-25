@@ -3,7 +3,6 @@
 package main
 
 import (
-	"Prove/webook/interactive/events"
 	repository2 "Prove/webook/interactive/repository"
 	cache2 "Prove/webook/interactive/repository/cache"
 	dao2 "Prove/webook/interactive/repository/dao"
@@ -25,7 +24,7 @@ var (
 	// 第三方依赖
 	thirdProvider = wire.NewSet(
 		ioc.InitDB, ioc.InitRedis, ioc.InitRLockClient,
-		ioc.InitLogger, ioc.InitKafka,
+		ioc.InitLogger, ioc.InitKafka, ioc.InitEtcd,
 		ioc.NewConsumers, ioc.NewSyncProducer,
 	)
 
@@ -86,15 +85,17 @@ func InitWebServer() *App {
 		userProvider,
 		codeProvider,
 		articleProvider,
-		interProvider,
 		rankingProvider,
 
 		// 批量处理
-		events.NewInteractiveReadEventBatchConsumer,
 		article.NewKafkaProducer,
 
+		// 数据迁移时的流量控制
+		//interProvider,
+		//ioc.InitInteractiveGRPCClient,
+
 		ioc.InitSMSService, ioc.InitWechatService,
-		ioc.InitInteractiveGRPCClient,
+		ioc.InitInteractiveGRPCClientV2,
 		ioc.InitRankingJob, ioc.InitJobs,
 
 		// 初始化 handler

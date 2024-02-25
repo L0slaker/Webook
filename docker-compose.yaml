@@ -21,13 +21,6 @@ services:
     ports:
       - "6379:6379"
 
-  etcd:
-    image: 'bitnami/etcd:latest'
-    environment:
-      - ALLOW_NONE_AUTHENTICATION=yes 
-    ports:
-      - "12379:2379"
-
   mongo:
     image: mongo:6.0
     environment:
@@ -71,6 +64,26 @@ services:
     image: 'openzipkin/zipkin-slim:2.24'
     ports:
       - '9411:9411'
+
+  etcd:
+    image: 'bitnami/etcd:latest'
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+    ports:
+      - "12379:2379"
+
+  nacos:
+    image: 'nacos/nacos-server:v2.3.0-slim'
+    environment:
+      - PREFER_HOST_MODE=hostname
+      - MODE=standalone
+      - NACOS_AUTH_IDENTITY_KEY=serverIdentity
+      - NACOS_AUTH_IDENTITY_VALUE=security
+      - NACOS_AUTH_TOKEN=SecretKey012345678901234567890123456789012345678901234567890123456789
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+
 
 #  mongo-express:
 #    image: mongo-express:0.54

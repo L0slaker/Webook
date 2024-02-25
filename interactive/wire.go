@@ -22,6 +22,7 @@ var thirdProvider = wire.NewSet(
 	ioc.InitLogger,
 	ioc.InitKafka,
 	ioc.InitSyncProducer,
+	ioc.InitEtcdClient,
 )
 
 var interactiveSvcProvider = wire.NewSet(

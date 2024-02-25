@@ -7,7 +7,6 @@
 package main
 
 import (
-	"Prove/webook/interactive/events"
 	repository2 "Prove/webook/interactive/repository"
 	cache2 "Prove/webook/interactive/repository/cache"
 	dao2 "Prove/webook/interactive/repository/dao"
@@ -57,15 +56,11 @@ func InitWebServer() *App {
 	syncProducer := ioc.NewSyncProducer(client)
 	producer := article3.NewKafkaProducer(syncProducer)
 	articleService := service.NewArticleService(articleRepository, loggerV1, producer)
-	interactiveCache := cache2.NewRedisInteractiveCache(cmdable)
-	interactiveDAO := dao2.NewGORMInteractiveDAO(db)
-	interactiveRepository := repository2.NewCachedInteractiveRepository(interactiveCache, interactiveDAO, loggerV1)
-	interactiveService := service2.NewInteractiveService(interactiveRepository, loggerV1)
-	interactiveServiceClient := ioc.InitInteractiveGRPCClient(interactiveService)
+	clientv3Client := ioc.InitEtcd()
+	interactiveServiceClient := ioc.InitInteractiveGRPCClientV2(clientv3Client)
 	articleHandler := web.NewArticleHandler(articleService, loggerV1, interactiveServiceClient)
 	engine := ioc.InitEngine(v, userHandler, oAuth2WechatHandler, articleHandler)
-	interactiveReadEventConsumer := events.NewInteractiveReadEventBatchConsumer(client, loggerV1, interactiveRepository)
-	v2 := ioc.NewConsumers(interactiveReadEventConsumer)
+	v2 := ioc.NewConsumers()
 	rankingRedisCache := cache.NewRankingRedisCache(cmdable)
 	rankingLocalCache := cache.NewRankingLocalCache()
 	rankingRepository := repository.NewCachedRankingRepository(rankingRedisCache, rankingLocalCache)
@@ -85,7 +80,7 @@ func InitWebServer() *App {
 
 var (
 	// 第三方依赖
-	thirdProvider = wire.NewSet(ioc.InitDB, ioc.InitRedis, ioc.InitRLockClient, ioc.InitLogger, ioc.InitKafka, ioc.NewConsumers, ioc.NewSyncProducer)
+	thirdProvider = wire.NewSet(ioc.InitDB, ioc.InitRedis, ioc.InitRLockClient, ioc.InitLogger, ioc.InitKafka, ioc.InitEtcd, ioc.NewConsumers, ioc.NewSyncProducer)
 
 	// 用户模块
 	userProvider = wire.NewSet(dao.NewUserInfoDAO, cache.NewUserCache, repository.NewUserInfoRepository, service.NewUserService)
