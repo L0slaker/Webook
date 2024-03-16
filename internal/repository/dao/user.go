@@ -14,6 +14,15 @@ var (
 	ErrDataNotFound  = gorm.ErrRecordNotFound
 )
 
+//createParam struct{
+//	Email *string
+//}
+//
+//TYPE findOneParam struct {
+//    Email *string
+//	Phone *string
+//}
+
 type UserDAO interface {
 	Insert(ctx context.Context, u User) error
 	FindById(ctx context.Context, id int64) (User, error)
@@ -21,6 +30,12 @@ type UserDAO interface {
 	FindByPhone(ctx context.Context, phone string) (User, error)
 	CompleteInfo(ctx context.Context, u User) error
 	FindByWechat(ctx context.Context, openId string) (User, error)
+
+	//Create()
+	//Delete()
+	//Update()
+	//FindOne()
+	//FindALL()
 }
 
 type User struct {
@@ -58,6 +73,7 @@ func (dao *GormUserDAO) Insert(ctx context.Context, u User) error {
 	u.UpdateTime = now
 
 	err := dao.db.WithContext(ctx).Create(&u).Error
+
 	if e, ok := err.(*mysql.MySQLError); ok {
 		const uniqueIndexErr uint16 = 1062
 		// 检查错误编号是否表示唯一索引冲突
